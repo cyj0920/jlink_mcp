@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
-    {name = "cyj0920", email = "cyj0920@gmail.com"}
+    {name = "cyj0920", email = "cyjie0920@gmail.com"}
 ]
 keywords = ["mcp", "jlink", "debugger", "segger", "embedded", "mcu"]
 classifiers = [
