@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "jlink-mcp"
-version = "0.1.0"
+version = "0.1.1"
 description = "AI 与 JLink 调试器的桥梁 - MCP 服务器"
 readme = "README.md"
 requires-python = ">=3.10"
