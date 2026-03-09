@@ -5,12 +5,14 @@
 **A powerful Model Context Protocol (MCP) server for J-Link debuggers**
 
 [![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![PyPI Version](https://badge.fury.io/py/jlink-mcp.svg)](https://pypi.org/project/jlink-mcp/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![MCP](https://img.shields.io/badge/MCP-Compatible-orange.svg)](https://modelcontextprotocol.io/)
 
 **J-Link调试器的强大模型上下文协议（MCP）服务器**
 
 [![Python版本](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![PyPI版本](https://badge.fury.io/py/jlink-mcp.svg)](https://pypi.org/project/jlink-mcp/)
 [![许可证](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![MCP](https://img.shields.io/badge/MCP-Compatible-orange.svg)](https://modelcontextprotocol.io/)
 
