@@ -29,11 +29,24 @@ jlink_mcp/
 │   └── jlink_mcp/       # 主代码目录
 │       ├── __init__.py
 │       ├── server.py    # MCP 服务器主文件
-│       └── jlink_wrapper.py  # JLink 封装
+│       ├── jlink_manager.py  # JLink 管理器
+│       ├── config_manager.py  # 配置管理
+│       ├── svd_manager.py     # SVD 管理
+│       ├── device_patch_manager.py  # 设备补丁管理
+│       ├── gdb_server.py      # GDB 服务器
+│       ├── models/       # 数据模型
+│       ├── tools/        # MCP 工具实现
+│       ├── plugins/      # 设备补丁插件
+│       └── tool/         # JLink 补丁文件
 ├── tests/               # 测试目录
+├── docs/                # 文档目录
+│   ├── guides/          # 使用指南
+│   ├── project/         # 项目文档
+│   └── reference/       # API 参考
 ├── pyproject.toml       # Python 项目配置
-├── README.md           # 项目说明
-└── IFLOW.md            # 本文件 (AI 上下文)
+├── CHANGELOG.md         # 更新日志
+├── README.md            # 项目说明
+└── INSTALL_GUIDE.md     # 安装指南
 ```
 
 ## 开发规范

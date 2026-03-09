@@ -79,7 +79,7 @@ mypy src/jlink_mcp
 编辑 `pyproject.toml`:
 ```toml
 [project]
-version = "0.1.0"  # 更新版本号
+version = "0.1.1"  # 更新版本号
 ```
 
 ### 3. 构建分发包
@@ -104,7 +104,7 @@ test_env\Scripts\activate  # Windows
 test_env/bin/activate      # Linux/Mac
 
 # 安装测试
-pip install dist/jlink_mcp-0.1.0-py3-none-any.whl
+pip install dist/jlink_mcp-0.1.1-py3-none-any.whl
 
 # 验证安装
 jlink-mcp --help
@@ -132,20 +132,20 @@ twine upload dist/*
 ```bash
 # 提交所有更改
 git add .
-git commit -m "Release v0.1.0"
+git commit -m "Release v0.1.1"
 
 # 创建标签
-git tag -a v0.1.0 -m "Release version 0.1.0"
+git tag -a v0.1.1 -m "Release version 0.1.1"
 
 # 推送标签
-git push origin v0.1.0
+git push origin v0.1.1
 ```
 
 ### 7. 创建 GitHub Release
 
 1. 打开 GitHub 仓库页面
 2. 点击 "Releases" → "Create a new release"
-3. 选择标签 `v0.1.0`
+3. 选择标签 `v0.1.1`
 4. 填写发布说明
 5. 上传 `dist/` 中的文件作为附件
 
@@ -265,6 +265,6 @@ A: 检查：
 
 示例：
 - `0.1.0` - 初始版本
-- `0.1.1` - Bug 修复
+- `0.1.1` - 文档和发布流程更新
 - `0.2.0` - 新功能
 - `1.0.0` - 正式发布
