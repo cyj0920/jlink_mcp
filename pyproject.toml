@@ -6,11 +6,11 @@ build-backend = "hatchling.build"
 name = "jlink-mcp"
 version = "0.1.0"
 description = "AI 与 JLink 调试器的桥梁 - MCP 服务器"
-readme = "AGENTS.md"
+readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
-    {name = "JLink MCP Team", email = "dev@jlink-mcp.com"}
+    {name = "cyj0920", email = "cyj0920@gmail.com"}
 ]
 keywords = ["mcp", "jlink", "debugger", "segger", "embedded", "mcu"]
 classifiers = [
@@ -45,10 +45,10 @@ dev = [
 jlink-mcp = "jlink_mcp.server:main"
 
 [project.urls]
-Homepage = "https://github.com/jlink-mcp/jlink-mcp"
-Documentation = "https://github.com/jlink-mcp/jlink-mcp#readme"
-Repository = "https://github.com/jlink-mcp/jlink-mcp"
-"Bug Tracker" = "https://github.com/jlink-mcp/jlink-mcp/issues"
+Homepage = "https://github.com/cyj0920/jlink_mcp"
+Documentation = "https://github.com/cyj0920/jlink_mcp#readme"
+Repository = "https://github.com/cyj0920/jlink_mcp"
+"Bug Tracker" = "https://github.com/cyj0920/jlink_mcp/issues"
 
 # UV 配置
 [tool.uv]
