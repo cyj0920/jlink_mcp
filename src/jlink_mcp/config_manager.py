@@ -1,0 +1,206 @@
+"""全局配置管理器.
+
+管理服务器的全局配置，包括默认参数、提示词模板等。
+"""
+
+from typing import Dict, Any, Optional
+from pydantic import BaseModel, Field
+
+from .utils import logger
+
+
+class ServerConfig(BaseModel):
+    """服务器配置."""
+    default_interface: str = Field(default="JTAG", description="默认接口类型")
+    default_timeout_ms: int = Field(default=10000, description="默认超时时间（毫秒）")
+    enable_auto_detect: bool = Field(default=True, description="是否启用自动检测")
+    max_memory_read_size: int = Field(default=65536, description="最大内存读取大小（字节）")
+    system_prompt: Optional[str] = Field(default=None, description="系统提示词")
+    custom_prompts: Dict[str, str] = Field(default_factory=dict, description="自定义提示词字典")
+
+
+class ConfigManager:
+    """配置管理器（单例模式）.
+
+    管理服务器全局配置，包括：
+    - 系统提示词（AI 行为指导）
+    - 自定义提示词（场景化指导）
+    - 服务器参数配置
+    """
+
+    _instance: Optional["ConfigManager"] = None
+    _initialized: bool = False
+
+    def __new__(cls) -> "ConfigManager":
+        """单例模式实现."""
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    def __init__(self):
+        """初始化配置管理器."""
+        if ConfigManager._initialized:
+            return
+
+        self._config = ServerConfig()
+
+        # 初始化默认系统提示词
+        self._config.system_prompt = self._get_default_system_prompt()
+
+        ConfigManager._initialized = True
+        logger.debug("ConfigManager 初始化完成")
+
+    def get_config(self) -> ServerConfig:
+        """获取当前配置.
+
+        Returns:
+            服务器配置对象
+        """
+        return self._config
+
+    def update_config(self, **kwargs) -> None:
+        """更新配置.
+
+        Args:
+            **kwargs: 配置键值对
+        """
+        for key, value in kwargs.items():
+            if hasattr(self._config, key):
+                setattr(self._config, key, value)
+                logger.info(f"配置更新: {key} = {value}")
+            else:
+                logger.warning(f"无效的配置项: {key}")
+
+    def get_system_prompt(self) -> str:
+        """获取系统提示词.
+
+        Returns:
+            系统提示词内容
+        """
+        return self._config.system_prompt or ""
+
+    def set_system_prompt(self, prompt: str) -> None:
+        """设置系统提示词.
+
+        Args:
+            prompt: 系统提示词内容
+        """
+        self._config.system_prompt = prompt
+        logger.info(f"系统提示词已更新: {len(prompt)} 字符")
+
+    def add_custom_prompt(self, name: str, prompt: str) -> None:
+        """添加自定义提示词.
+
+        Args:
+            name: 提示词名称
+            prompt: 提示词内容
+        """
+        self._config.custom_prompts[name] = prompt
+        logger.info(f"自定义提示词已添加: {name}")
+
+    def get_custom_prompt(self, name: str) -> Optional[str]:
+        """获取自定义提示词.
+
+        Args:
+            name: 提示词名称
+
+        Returns:
+            提示词内容，不存在则返回 None
+        """
+        return self._config.custom_prompts.get(name)
+
+    def list_custom_prompts(self) -> Dict[str, str]:
+        """列出所有自定义提示词.
+
+        Returns:
+            自定义提示词字典
+        """
+        return self._config.custom_prompts.copy()
+
+    def remove_custom_prompt(self, name: str) -> bool:
+        """移除自定义提示词.
+
+        Args:
+            name: 提示词名称
+
+        Returns:
+            是否成功移除
+        """
+        if name in self._config.custom_prompts:
+            del self._config.custom_prompts[name]
+            logger.info(f"自定义提示词已移除: {name}")
+            return True
+        return False
+
+    def _get_default_system_prompt(self) -> str:
+        """获取默认系统提示词.
+
+        Returns:
+            默认系统提示词
+        """
+        return """你是 JLink MCP 调试专家助手，精通嵌入式系统调试和 JLink 工具使用。
+
+## 你的职责
+1. 帮助用户连接和调试 JLink 设备
+2. 提供芯片识别和配置建议
+3. 指导用户进行内存操作和 Flash 烧录
+4. 协助解决调试过程中的问题
+
+## 🎯 全局默认配置
+- **默认接口**：JTAG（通用接口，适用于大多数芯片）
+- **芯片名称**：支持缩写自动匹配（如果设备补丁可用）
+- **CPU 控制**：读取寄存器/内存前必须暂停 CPU（halt_cpu）
+- **批次优先级**：自动选择最新版本（如果设备补丁支持）
+
+## 🚫 禁止操作（严格遵守）
+- **不要**使用 read_file 工具读取 src/jlink_mcp/ 下的任何源代码文件
+- **不要**在正常业务流程中插入源码分析或调试
+- **不要**重复调用已失败的连接（尝试不同方法）
+- **不要**读取任何 .py、.md、.txt 等项目文件
+- **不要**调用 get_svd_peripherals 遍历外设列表来查找地址
+- **不要**跳过 halt_cpu() 步骤（读取寄存器/内存前必须暂停 CPU）
+
+## ✅ 推荐流程
+### 读取寄存器（标准流程）
+1. connect_device(chip_name='FC7300F4MDD', interface='JTAG') - 连接设备（支持缩写）
+2. halt_cpu() - 暂停 CPU（必需！）
+3. read_register_with_fields(device, peripheral, register) - 读取寄存器
+
+### 写入内存
+1. connect_device(chip_name, interface='JTAG') - 连接设备
+2. halt_cpu() - 暂停 CPU（必需！）
+3. write_memory(address, data, width) - 写入数据
+
+### Flash 操作
+1. connect_device(chip_name, interface='JTAG') - 连接设备
+2. erase_flash(chip_erase=False, start_address, end_address) - 擦除
+3. program_flash(address, data, verify=True) - 烧录
+
+## 📍 地址获取规则
+- **如果已知寄存器地址**：直接调用 read_register_with_fields
+- **如果不知道地址**：只调用一次 get_svd_registers(device, peripheral) 并缓存结果
+- **禁止**：调用 get_svd_peripherals 遍历所有外设
+
+## 📋 错误处理原则
+- 如果连接失败，检查芯片名称和接口类型
+- 如果读取失败，检查是否暂停了 CPU（halt_cpu）
+- 如果 Flash 操作失败，先擦除再烧录
+- 遇到错误时，提供具体的错误诊断和建议，不要插入源码分析
+
+## 💡 性能优化
+- 避免重复的工具调用
+- 缓存查询结果（如外设列表、寄存器地址）
+- 使用并行调用提高效率（无依赖的工具）
+- 最小化数据传输（只读取必要的数据）
+- 使用芯片名称缩写，减少输入时间
+
+## 🤖 工具使用建议
+- 使用前先调用 get_usage_guidance() 获取最佳实践
+- 遇到错误时调用 get_best_practices() 查看解决方案
+- 不要猜测工具参数，查看工具描述和示例
+- 连接设备时优先使用芯片名称缩写，系统会自动匹配完整名称
+"""
+
+
+# 全局单例实例
+config_manager = ConfigManager()

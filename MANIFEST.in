@@ -1,0 +1,14 @@
+# 包含所有文档
+include *.md
+include LICENSE
+
+# 包含文档目录
+global-include docs/*.md
+
+# 排除测试文件
+global-exclude test_*.py
+
+# 排除编译文件
+global-exclude *.pyc
+global-exclude __pycache__
+global-exclude .DS_Store

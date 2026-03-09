@@ -1,0 +1,37 @@
+{
+  "contextFileName": "IFLOW.md",
+  "theme": "Default",
+  "language": "zh-CN",
+  "approvalMode": "yolo",
+  "fileFiltering": {
+    "respectGitIgnore": true,
+    "enableRecursiveFileSearch": true
+  },
+  "mcpServers": {
+    "jlink-mcp": {
+      "command": ".venv\\Scripts\\python.exe",
+      "args": ["-m", "jlink_mcp"],
+      "cwd": ".",
+      "timeout": 60000,
+      "trust": true,
+      "env": {
+        "PYTHONPATH": "src"
+      }
+    }
+  },
+  "autoAccept": false,
+  "vimMode": false,
+  "pasteFromClipboard": true,
+  "maxSessionTurns": -1,
+  "summarizeToolOutput": {},
+  "telemetry": {
+    "enabled": false,
+    "target": "local",
+    "logPrompts": false
+  },
+  "errorLog": {
+    "enabled": true,
+    "maxInMemoryErrors": 50,
+    "enableFileLogging": false
+  }
+}

@@ -1,0 +1,104 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "jlink-mcp"
+version = "0.1.0"
+description = "AI 与 JLink 调试器的桥梁 - MCP 服务器"
+readme = "AGENTS.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "JLink MCP Team", email = "dev@jlink-mcp.com"}
+]
+keywords = ["mcp", "jlink", "debugger", "segger", "embedded", "mcu"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Debuggers",
+    "Topic :: System :: Hardware",
+]
+
+dependencies = [
+    "pylink-square>=2.0.0",
+    "mcp>=1.26.0",
+    "pydantic>=2.12.0",
+    "pydantic-settings>=2.12.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "black>=24.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.8.0",
+]
+
+[project.scripts]
+jlink-mcp = "jlink_mcp.server:main"
+
+[project.urls]
+Homepage = "https://github.com/jlink-mcp/jlink-mcp"
+Documentation = "https://github.com/jlink-mcp/jlink-mcp#readme"
+Repository = "https://github.com/jlink-mcp/jlink-mcp"
+"Bug Tracker" = "https://github.com/jlink-mcp/jlink-mcp/issues"
+
+# UV 配置
+[tool.uv]
+# 包索引
+index-url = "https://pypi.org/simple"
+# 默认安装开发依赖
+default-groups = ["dev"]
+# 使用 required-version 指定 uv 版本要求
+required-version = ">=0.10.0"
+
+[tool.uv.pip]
+# pip 兼容模式配置
+generate-hashes = false
+
+# UV 开发依赖组（替代 [project.optional-dependencies].dev）
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-benchmark>=4.0.0",
+    "pytest-cov>=4.1.0",
+    "black>=24.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.8.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/jlink_mcp"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/docs",
+    "/CHANGELOG.md",
+    "/LICENSE",
+    "/README.md",
+]
+
+[tool.black]
+line-length = 120
+target-version = ["py310", "py311", "py312"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+select = ["E", "F", "I", "N", "W", "UP"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
