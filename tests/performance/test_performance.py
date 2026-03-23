@@ -1,4 +1,4 @@
-"""性能测试 - 测试 MCP 服务的性能.
+"""Performance Tests / 性能测试 - 测试 MCP 服务的性能.
 
 测试目标：
 - SVD 延迟加载性能
@@ -12,7 +12,7 @@ import time
 from typing import Tuple
 
 from jlink_mcp.svd_manager import SVDManager
-from jlink_mcp.flagchip_patch import FlagchipPatch
+from jlink_mcp.plugins.flagchip_patch import FlagchipPatch
 
 
 # ==================== Fixtures ====================

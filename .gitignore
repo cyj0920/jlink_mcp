@@ -46,6 +46,7 @@ logs/
 *.bin
 *.hex
 *.elf
+!src/jlink_mcp/resources/**/*.elf
 
 # OS
 .DS_Store

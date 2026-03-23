@@ -102,3 +102,54 @@ python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
+
+# Pytest 配置
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+minversion = "8.0"
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--tb=short",
+    "--cov=src/jlink_mcp",
+    "--cov-report=html",
+    "--cov-report=term-missing",
+    "--cov-fail-under=60",
+]
+markers = [
+    "unit: 单元测试（不依赖硬件）",
+    "integration: 集成测试（需要硬件）",
+    "mock: Mock 测试",
+    "slow: 慢速测试",
+    "svd: SVD 相关测试",
+    "memory: 内存操作测试",
+    "flash: Flash 操作测试",
+    "rtt: RTT 测试",
+    "gdb: GDB Server 测试",
+    "connection: 连接管理测试",
+    "device_info: 设备信息测试",
+    "benchmark: 性能基准测试（使用 pytest-benchmark）",
+    "performance: 性能测试",
+]
+
+# Coverage 配置
+[tool.coverage.run]
+source = ["src/jlink_mcp"]
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+    "*/site-packages/*",
+    "*/venv/*",
+    "*/.venv/*",
+]
+
+[tool.coverage.report]
+precision = 2
+skip_covered = false
+show_missing = true
+
+[tool.coverage.html]
+directory = "htmlcov"

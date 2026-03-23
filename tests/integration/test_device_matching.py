@@ -1,9 +1,13 @@
-"""测试设备名称智能匹配功能."""
+"""Test Device Name Smart Matching / 测试设备名称智能匹配功能."""
 
 import sys
-sys.path.insert(0, "src")
+from pathlib import Path
 
-from jlink_mcp.flagchip_patch import flagchip_patch
+# 添加项目路径
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root / "src"))
+
+from jlink_mcp.plugins.flagchip_patch import flagchip_patch
 
 
 def test_match_device_name():

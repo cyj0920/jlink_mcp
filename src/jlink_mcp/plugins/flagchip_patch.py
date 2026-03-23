@@ -34,7 +34,7 @@ class FlagchipPatch(DevicePatchInterface):
         else:
             # 获取包目录（src/jlink_mcp）
             current_dir = Path(__file__).resolve().parent.parent
-            self._patch_path = current_dir / "tool" / "JLink_Patch_v2.45" / "JLinkDevices.xml"
+            self._patch_path = current_dir / "resources" / "JLink_Patch_v2.45" / "JLinkDevices.xml"
             logger.info(f"使用包内JLink补丁目录: {self._patch_path}")
 
         self._devices: List[Dict[str, Any]] = []

@@ -57,7 +57,7 @@ class SVDManager:
         else:
             # 获取包目录（src/jlink_mcp）
             current_dir = Path(__file__).resolve().parent
-            self._svd_path = current_dir / "tool" / "SVD_V1.5.6"
+            self._svd_path = current_dir / "resources" / "SVD_V1.5.6"
             logger.info(f"使用包内SVD目录: {self._svd_path}")
 
         # Pickle 缓存目录

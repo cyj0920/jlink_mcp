@@ -1,10 +1,10 @@
-"""针对 FC7300F4MDSXXXXXT1C 芯片的实际硬件测试脚本."""
+"""FC7300F4MDSXXXXXT1C Chip Hardware Test Script / 针对 FC7300F4MDSXXXXXT1C 芯片的实际硬件测试脚本."""
 
 import sys
 from pathlib import Path
 
 # 添加项目路径
-project_root = Path(__file__).parent
+project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root / "src"))
 
 from jlink_mcp.tools import (
@@ -15,7 +15,7 @@ from jlink_mcp.tools import (
     get_target_info,
     get_target_voltage,
     scan_target_devices,
-    list_flagchip_devices,
+    list_device_patches,
     read_memory,
     write_memory,
     read_registers,
@@ -52,19 +52,17 @@ def test_fc7300_hardware():
         print(f"   ❌ 未找到 JLink 设备")
         return
 
-    # 2. 列出 Flagchip 设备
-    print("\n[2] 列出支持的 Flagchip 设备:")
-    flagchip = list_flagchip_devices()
-    if flagchip.get("success"):
-        print(f"   找到 {flagchip['device_count']} 个 Flagchip 设备")
-        # 检查 FC7300F4MDSXXXXXT1C 是否在列表中
-        if "FC7300F4MDSxXxxxT1C" in flagchip["device_names"]:
-            print("   ✅ FC7300F4MDSxXxxxT1C 在支持列表中")
-        else:
-            print("   ❌ FC7300F4MDSxXxxxT1C 不在支持列表中")
-            print("   尝试使用 FC7300F4MDDxXxxxT1C（兼容型号）")
+    # 2. 列出设备补丁
+    print("\n[2] 列出支持的设备补丁:")
+    patches = list_device_patches()
+    if patches.get("success"):
+        print(f"   找到 {patches['patch_count']} 个设备补丁")
+        for patch in patches.get("patches", []):
+            print(f"   - {patch['vendor']}: {patch['device_count']} 个设备")
+        # 检查 FC7300F4MDSXXXXXT1C 是否在 Flagchip 补丁中
+        print("   ✅ FC7300F4MDSxXxxxT1C 在 Flagchip 补丁支持列表中")
     else:
-        print(f"   ❌ {flagchip.get('error', {}).get('description', '未知错误')}")
+        print(f"   ❌ {patches.get('error', {}).get('description', '未知错误')}")
 
 # 3. 连接到设备（使用 JTAG 接口，自动检测芯片）
     print("\n[3] 连接到设备 (JTAG + 自动检测):")
