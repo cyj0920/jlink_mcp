@@ -96,12 +96,11 @@ jlink_mcp/
 ├── src/jlink_mcp/          # 源代码
 ├── docs/                   # 文档
 │   ├── guides/             # 使用指南
-│   ├── project/            # 项目文档
 │   └── reference/          # API 参考
-├── tool/                   # 工具文件
+├── resources/              # 静态资源
 │   ├── JLink_Patch_v2.45/  # Flagchip 补丁
 │   └── SVD_V1.5.6/         # SVD 定义文件
-├── test_fc7300.py          # 硬件测试
+├── tests/                  # 测试文件
 ├── pyproject.toml          # 项目配置
 └── README.md               # 项目说明
 ```

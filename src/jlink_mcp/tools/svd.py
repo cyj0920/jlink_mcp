@@ -31,7 +31,7 @@ def list_svd_devices() -> Dict[str, Any]:
                 "error": {
                     "code": JLinkErrorCode.NOT_INITIALIZED.value[0],
                     "description": "SVD 文件不可用",
-                    "suggestion": "请检查 jlink_mcp 包内的 tool/SVD_V1.5.6 目录是否存在"
+                    "suggestion": "请检查 jlink_mcp 包内的 resources/SVD_V1.5.6 目录是否存在"
                 }
             }
         devices = svd_manager.device_names
