@@ -1,4 +1,4 @@
-"""JLink MCP 工具函数."""
+"""JLink MCP Utility Functions / JLink MCP 工具函数."""
 
 import logging
 from typing import Optional

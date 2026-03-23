@@ -1,4 +1,4 @@
-"""JLink MCP 自定义异常和错误代码定义."""
+"""JLink MCP Custom Exceptions and Error Codes / JLink MCP 自定义异常和错误代码定义."""
 
 from enum import Enum
 from typing import Optional

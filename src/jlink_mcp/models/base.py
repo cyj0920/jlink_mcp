@@ -1,4 +1,4 @@
-"""JLink MCP 基础数据模型."""
+"""JLink MCP Base Data Models / JLink MCP 基础数据模型."""
 
 from typing import Generic, Optional, TypeVar, Any
 from pydantic import BaseModel, Field, ConfigDict

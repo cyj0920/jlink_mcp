@@ -1,4 +1,4 @@
-"""设备信息工具函数."""
+"""Device Information Tool Functions / 设备信息工具函数."""
 
 from typing import Dict, Any, List
 

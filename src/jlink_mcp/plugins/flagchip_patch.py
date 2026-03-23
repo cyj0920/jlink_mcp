@@ -1,11 +1,12 @@
-"""Flagchip JLink 补丁插件.
+"""Flagchip JLink Patch Plugin / Flagchip JLink 补丁插件.
 
+Implements DevicePatchInterface, providing device patch support for Flagchip vendor.
 实现 DevicePatchInterface，提供 Flagchip 厂商的设备补丁支持。
 
-优化特性:
-- 预计算小写名称字典，O(1) 精确匹配
-- 单次遍历完成前缀匹配
-- 缓存匹配结果
+Optimization Features / 优化特性:
+- Pre-computed lowercase name dict, O(1) exact match / 预计算小写名称字典，O(1) 精确匹配
+- Single traversal for prefix matching / 单次遍历完成前缀匹配
+- Cached match results / 缓存匹配结果
 """
 
 from pathlib import Path

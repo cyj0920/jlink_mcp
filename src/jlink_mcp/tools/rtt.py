@@ -1,4 +1,4 @@
-"""RTT (Real Time Transfer) 工具函数."""
+"""RTT (Real Time Transfer) Tool Functions / RTT (Real Time Transfer) 工具函数."""
 
 from typing import Dict, Any, Optional
 

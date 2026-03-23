@@ -1,5 +1,7 @@
-"""设备补丁管理器.
+"""Device Patch Manager / 设备补丁管理器.
 
+Unified management of all device patch plugins, providing a unified interface
+for device name matching and querying.
 统一管理所有设备补丁插件，提供设备名称匹配和查询的统一接口。
 """
 

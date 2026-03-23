@@ -1,6 +1,8 @@
-"""使用指南和帮助工具函数.
+"""Usage Guidance and Help Tool Functions / 使用指南和帮助工具函数.
 
+Provides usage guides, examples, and best practices for MCP tools.
 提供 MCP 工具的使用指南、示例和最佳实践。
+This module does not depend on hardware connection and can be called directly.
 此模块不依赖硬件连接，可直接调用。
 """
 

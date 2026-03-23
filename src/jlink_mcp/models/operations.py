@@ -1,4 +1,4 @@
-"""操作相关数据模型."""
+"""Operation Related Data Models / 操作相关数据模型."""
 
 from typing import Optional
 from pydantic import BaseModel, Field, field_validator

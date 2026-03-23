@@ -1,5 +1,7 @@
-"""设备补丁抽象层接口.
+"""Device Patch Abstract Interface / 设备补丁抽象层接口.
 
+Defines the common interface for device patches, supporting plugin-based loading
+for multiple vendors' device patches.
 定义设备补丁的通用接口，支持多种厂商的设备补丁插件化加载。
 """
 

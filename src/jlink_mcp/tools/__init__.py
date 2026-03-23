@@ -1,14 +1,16 @@
-"""JLink MCP 工具函数包.
+"""JLink MCP Tools Package / JLink MCP 工具函数包.
 
+This package contains all MCP tool implementations, grouped by function.
 此包包含所有 MCP 工具的实现，按功能分组：
-- connection: 连接管理
-- device_info: 设备信息
-- memory: 内存操作
-- flash: Flash 操作
-- debug: 调试控制
-- rtt: RTT 日志
-- svd: SVD 寄存器解析
-- guidance: 使用指南和最佳实践
+
+- connection: Connection management / 连接管理
+- device_info: Device information / 设备信息
+- memory: Memory operations / 内存操作
+- flash: Flash operations / Flash 操作
+- debug: Debug control / 调试控制
+- rtt: RTT logging / RTT 日志
+- svd: SVD register parsing / SVD 寄存器解析
+- guidance: Usage guides and best practices / 使用指南和最佳实践
 """
 
 # 导出所有工具函数，方便在 server.py 中导入

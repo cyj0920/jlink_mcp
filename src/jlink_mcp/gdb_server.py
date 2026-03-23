@@ -1,4 +1,4 @@
-"""J-Link GDB Server 管理."""
+"""J-Link GDB Server Management / J-Link GDB Server 管理."""
 
 import threading
 import time

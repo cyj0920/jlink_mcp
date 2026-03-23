@@ -1,5 +1,7 @@
-"""SVD 工具函数.
+"""SVD Tool Functions / SVD 工具函数.
 
+Provides SVD-related MCP tool functions for querying peripherals, registers,
+and reading/parsing register values.
 提供 SVD 相关的 MCP 工具函数，用于查询外设、寄存器信息和读取/解析寄存器值。
 """
 

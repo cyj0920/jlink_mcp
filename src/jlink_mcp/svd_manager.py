@@ -1,13 +1,15 @@
-"""SVD 文件管理器 - 单例模式管理 SVD 解析和查询.
+"""SVD File Manager - Singleton Pattern / SVD 文件管理器 - 单例模式管理 SVD 解析和查询.
 
+Responsible for loading and parsing all SVD files, providing query interfaces
+for chips, peripherals, registers, and fields.
 负责加载和解析所有 SVD 文件，提供芯片、外设、寄存器、字段的查询接口。
 
-优化特性:
-- 延迟加载: 只在首次访问设备时加载对应的 SVD 文件
-- Pickle 缓存: 解析后的数据缓存到磁盘，热启动极速加载
-- 索引查找: 外设和寄存器使用字典索引，O(1) 复杂度
-- 预计算: 字段 mask 值和枚举字典在解析时预计算
-- 缓存: 使用 LRU 缓存频繁查询的结果
+Optimization Features / 优化特性:
+- Lazy Loading / 延迟加载: Only load corresponding SVD file on first device access / 只在首次访问设备时加载对应的 SVD 文件
+- Pickle Cache / Pickle 缓存: Parsed data cached to disk for fast hot start / 解析后的数据缓存到磁盘，热启动极速加载
+- Index Lookup / 索引查找: Peripherals and registers use dict index, O(1) complexity / 外设和寄存器使用字典索引，O(1) 复杂度
+- Pre-computation / 预计算: Field mask values and enum dict pre-computed during parsing / 字段 mask 值和枚举字典在解析时预计算
+- Cache / 缓存: Use LRU cache for frequently queried results / 使用 LRU 缓存频繁查询的结果
 """
 
 from pathlib import Path

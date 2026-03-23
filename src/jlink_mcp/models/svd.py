@@ -1,5 +1,7 @@
-"""SVD (System View Description) 数据模型.
+"""SVD (System View Description) Data Models / SVD (System View Description) 数据模型.
 
+Defines data structures after SVD file parsing, used to describe chip peripherals,
+registers, and field information.
 定义 SVD 文件解析后的数据结构，用于描述芯片的外设、寄存器和字段信息。
 """
 

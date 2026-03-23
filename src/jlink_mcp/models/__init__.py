@@ -1,4 +1,4 @@
-"""JLink MCP 数据模型包."""
+"""JLink MCP Data Models Package / JLink MCP 数据模型包."""
 
 from .base import MCPResponse, MCPError, OperationStatus
 from .device import DeviceInfo, ConnectionStatus, TargetInterface

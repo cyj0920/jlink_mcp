@@ -1,5 +1,6 @@
-"""全局配置管理器.
+"""Global Configuration Manager / 全局配置管理器.
 
+Manages server global configuration, including default parameters and prompt templates.
 管理服务器的全局配置，包括默认参数、提示词模板等。
 """
 

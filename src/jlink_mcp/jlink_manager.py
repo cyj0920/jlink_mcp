@@ -1,4 +1,4 @@
-"""JLink 设备管理器 - 单例模式管理 JLink 连接."""
+"""JLink Device Manager - Singleton Pattern / JLink 设备管理器 - 单例模式管理 JLink 连接."""
 
 import pylink
 from typing import Optional, List

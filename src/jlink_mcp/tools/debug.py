@@ -1,4 +1,4 @@
-"""调试控制工具函数."""
+"""Debug Control Tool Functions / 调试控制工具函数."""
 
 from typing import Dict, Any, List, Optional
 

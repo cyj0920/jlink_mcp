@@ -1,9 +1,9 @@
-"""JLink MCP 服务器启动入口.
+"""JLink MCP Server Entry Point / JLink MCP 服务器启动入口.
 
-使用方法:
+Usage / 使用方法:
     python -m jlink_mcp
-    
-或:
+
+Or / 或:
     python -m jlink_mcp.server
 """
 

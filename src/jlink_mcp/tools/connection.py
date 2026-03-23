@@ -1,4 +1,4 @@
-"""连接管理工具函数."""
+"""Connection Management Tool Functions / 连接管理工具函数."""
 
 from typing import List, Dict, Any
 
