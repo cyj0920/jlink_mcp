@@ -1,164 +1,245 @@
 # JLink MCP 硬件测试指南
 
-本目录包含用于验证 JLink MCP 服务器功能的硬件测试脚本。
+本指南介绍如何验证 JLink MCP 服务器功能。
+
+## 测试检查清单
+
+### 环境准备
+
+- [ ] Python 3.10+ 已安装
+- [ ] 项目依赖已安装 (`pip install -e .`)
+- [ ] pytest 已安装
+- [ ] JLink 驱动已安装
+- [ ] JLink 调试器已连接 USB
+
+### 硬件准备
+
+- [ ] JLink 调试器已连接电脑
+- [ ] 目标芯片已供电
+- [ ] 调试接口已连接 (JTAG/SWD)
+
+---
 
 ## 测试脚本
 
-### 1. test_hardware_simple.py - 简化测试脚本
+### tests/integration/test_fc7300.py - FC7300 集成测试
 
-快速测试核心功能，适合日常验证。
-
-**测试内容：**
-- 列出 JLink 设备
-- 连接/断开设备
-- 获取连接状态和目标信息
-- 读取 CPU 寄存器
-- 列出 Flagchip 设备
-- 列出 SVD 设备
-- 获取外设列表
-- 解析寄存器值
-
-**运行方法：**
 ```bash
-python test_hardware_simple.py
-# 或使用虚拟环境
-.venv\Scripts\python.exe test_hardware_simple.py
+pytest tests/integration/test_fc7300.py -v -m integration
 ```
 
-### 2. test_hardware_comprehensive.py - 全面测试脚本
+### tests/integration/test_device_matching.py - 设备匹配测试
 
-完整的测试套件，涵盖所有功能模块。
-
-**测试内容：**
-- 连接管理（4 个测试）
-- 设备信息（4 个测试）
-- 内存操作（4 个测试）
-- 调试控制（7 个测试）
-- SVD 功能（5 个测试）
-- Flash 操作（3 个测试，默认禁用）
-- RTT 功能（5 个测试，默认禁用）
-- GDB Server（3 个测试，默认禁用）
-
-**运行方法：**
 ```bash
-python test_hardware_comprehensive.py
-# 或使用虚拟环境
-.venv\Scripts\python.exe test_hardware_comprehensive.py
+pytest tests/integration/test_device_matching.py -v
 ```
 
-**配置选项：**
-编辑 `TEST_CONFIG` 变量来调整测试选项：
-- `test_flash`: Flash 操作测试（需要固件文件）
-- `test_rtt`: RTT 功能测试（需要目标程序支持）
-- `test_gdb`: GDB Server 测试
-- `test_svd`: SVD 功能测试
-- `test_breakpoints`: 断点测试
-- `test_memory_write`: 内存写入测试
+### tests/mock/ - Mock 测试
 
-## 测试要求
+```bash
+pytest tests/mock/ -v
+```
 
-### 硬件要求
-- J-Link 调试器（已测试：J-Link V11）
-- 目标芯片（已测试：FC7300F4MDSXXXXXT1C）
-- USB 连接线
+### tests/unit/ - 单元测试
 
-### 软件要求
-- Python 3.10+
-- 已安装项目依赖（参考 `requirements-uv.txt`）
+```bash
+pytest tests/unit/ -v
+```
 
-## 已知问题
+---
 
-### JLink 设备占用
+## 运行所有测试
 
-如果遇到 "J-Link is already open" 错误：
+```bash
+# 运行所有测试
+pytest tests/ -v
 
-1. **关闭其他 JLink 应用**
-   - 关闭 J-Link Commander
-   - 关闭 JLinkGDBServer
-   - 关闭 IDE（如 Keil, IAR, Segger Embedded Studio）
+# 仅运行不需要硬件的测试
+pytest tests/unit tests/mock -v
 
-2. **手动重置 JLink**
-   - 拔掉 JLink USB 连接线
-   - 等待 5 秒
-   - 重新插入 USB
+# 运行集成测试（需要硬件）
+pytest tests/integration/ -v -m integration
+```
 
-3. **使用 JLink Commander 关闭连接**
-   ```
-   JLinkExe
-   > exit
-   ```
-
-4. **在 Windows 任务管理器中结束进程**
-   - 查找 `JLink.exe` 或 `JLinkGDBServer.exe`
-   - 结束相关进程
-
-### 目标电压读取失败
-
-这是 pylink-square 库的限制，不影响其他功能。
-
-## 测试结果解读
-
-测试结果会显示：
-- ✅ 测试通过
-- ❌ 测试失败
-- ⏭️  测试跳过
-
-最后会输出汇总信息：
-- 总计测试数
-- 通过数
-- 失败数
-- 跳过数
-- 失败详情
+---
 
 ## 已验证的功能
 
 ### FC7300F4MDSXXXXXT1C (Flagchip)
-- ✅ 设备连接
-- ✅ 复位控制
-- ✅ 寄存器读取
-- ✅ 断开连接
-- ✅ SVD 文件加载（11 个设备）
-- ✅ 外设查询（FLEXCAN0: 59 个寄存器）
-- ✅ 寄存器字段解析
+- 设备连接
+- 复位控制
+- 寄存器读取
+- 断开连接
+- SVD 文件加载（11 个设备）
+- 外设查询（FLEXCAN0: 59 个寄存器）
+- 寄存器字段解析
 
-## 扩展测试
+---
 
-### 添加新的芯片型号
+## 测试场景
 
-编辑测试配置中的 `devices` 数组：
+### 场景 1：基本连接测试
+
 ```python
-"devices": [
-    {
-        "name": "FC7300F4MDSxXxxxT1C",
-        "serial_number": "941000024",
-        "interface": "JTAG",
-        "chip_name": None,  # 或指定芯片名称
-    },
-    # 添加更多设备...
-],
+# 测试步骤
+1. list_jlink_devices()     # 期望: 返回设备列表
+2. connect_device(chip_name="FC7300F4MDD")  # 期望: success=true
+3. get_target_info()        # 期望: 返回芯片信息
+4. disconnect_device()      # 期望: success=true
 ```
 
-### 添加新的测试用例
+### 场景 2：内存读写测试
 
-在相应的 `test_*` 函数中添加测试逻辑。
+```python
+# 测试步骤
+1. connect_device(chip_name="FC7300F4MDD")
+2. halt_cpu()
+3. write_memory(address=0x20000000, data=b'\x11\x22\x33\x44')
+4. read_memory(address=0x20000000, size=4)
+5. # 期望: 返回 [0x11, 0x22, 0x33, 0x44]
+6. run_cpu()
+7. disconnect_device()
+```
+
+### 场景 3：Flash 操作测试
+
+```python
+# 测试步骤
+1. connect_device(chip_name="FC7300F4MDD")
+2. erase_flash(chip_erase=True)  # 期望: success=true
+3. program_flash(address=0x08000000, data=test_data, verify=True)
+4. verify_flash(address=0x08000000, data=test_data)
+5. reset_target()
+6. disconnect_device()
+```
+
+### 场景 4：调试控制测试
+
+```python
+# 测试步骤
+1. connect_device(chip_name="FC7300F4MDD")
+2. reset_target(reset_type="halt")
+3. get_cpu_state()          # 期望: halted=true
+4. set_breakpoint(address=0x08000100)
+5. run_cpu()
+6. # 等待断点命中
+7. get_cpu_state()          # 期望: pc=0x08000100
+8. clear_breakpoint(address=0x08000100)
+9. disconnect_device()
+```
+
+### 场景 5：SVD 解析测试
+
+```python
+# 测试步骤
+1. list_svd_devices()       # 期望: 返回设备列表
+2. get_svd_peripherals(device_name="FC4150F1MBSxXxxxT1A")
+3. get_svd_registers(device_name="...", peripheral_name="FLEXCAN0")
+4. read_register_with_fields(...)  # 需要设备连接
+```
+
+---
+
+## 预期结果示例
+
+### 成功连接输出
+
+```json
+{
+  "success": true,
+  "serial_number": "941000024",
+  "message": "成功连接到设备 941000024，接口: JTAG"
+}
+```
+
+### 设备信息输出
+
+```json
+{
+  "success": true,
+  "data": {
+    "device_name": "FC7300F4MDDxXxxxT1C",
+    "core_type": "Cortex-M4",
+    "flash_size": 262144,
+    "ram_size": 32768
+  }
+}
+```
+
+### 错误输出示例
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": 100,
+    "description": "未找到 JLink 设备",
+    "suggestion": "检查 USB 连接或重新插拔设备"
+  }
+}
+```
+
+---
 
 ## 故障排除
 
+### JLink 设备占用
+
+1. 关闭其他 JLink 应用
+2. 拔掉 JLink USB 连接线，等待 5 秒后重新插入
+3. 结束 `JLink.exe` 进程
+
 ### 导入错误
-确保 Python 路径正确：
+
 ```bash
-export PYTHONPATH="${PYTHONPATH}:$(pwd)/src"
+pip install -e .
 ```
 
 ### 设备未找到
+
 - 检查 USB 连接
-- 检查 JLink 驱动是否正确安装
+- 检查 JLink 驱动
 - 尝试不同的 USB 端口
 
-### 连接超时
-- 检查目标芯片供电
-- 检查调试接口连接（JTAG/SWD）
-- 尝试降低接口速度
+---
+
+## 测试报告模板
+
+测试完成后，建议记录以下信息：
+
+```
+## 测试报告
+
+**日期**: 2024-01-15
+**测试人员**: 张三
+**JLink 型号**: J-Link V11
+**固件版本**: V2.45
+**目标芯片**: FC7300F4MDSXXXXXT1C
+
+### 测试结果
+
+| 测试项 | 结果 | 备注 |
+|--------|------|------|
+| 设备枚举 | ✓ PASS | - |
+| 设备连接 | ✓ PASS | JTAG 模式 |
+| 电压检测 | ✓ PASS | 3.3V |
+| 芯片识别 | ✓ PASS | - |
+| 内存读取 | ✓ PASS | - |
+| Flash 烧录 | ✓ PASS | 64KB |
+| 复位控制 | ✓ PASS | - |
+
+### 问题记录
+
+无
+
+### 环境信息
+
+- Python: 3.12.9
+- OS: Windows 11
+- jlink-mcp: v0.1.1
+```
+
+---
 
 ## 报告问题
 
