@@ -35,14 +35,16 @@ JLink MCP Server is a comprehensive debugging tool that integrates J-Link debugg
 | Feature | Description |
 |---------|-------------|
 | 🔌 **Device Connection** | Connect via SWD/JTAG with automatic chip detection |
+| 🔍 **Smart Chip Matching** | Intelligent chip name matching (e.g., `FC7300F4MDD` → `FC7300F4MDDxXxxxT1C`) |
 | 💾 **Memory Operations** | Read/write memory with configurable access widths (8/16/32-bit) |
 | 🔥 **Flash Programming** | Program, erase, and verify flash memory |
 | 🎯 **Debug Control** | Halt, run, single-step execution with breakpoints |
 | 📊 **Register Access** | Read/write CPU registers with SVD field parsing |
 | 📡 **RTT Support** | Real-time data transfer via Segger RTT |
-| 🔧 **SVD Integration** | Access peripheral registers via SVD files |
+| 🔧 **SVD Integration** | Access peripheral registers via SVD files with pickle cache |
 | 🧩 **Plugin Architecture** | Extensible device-specific patch system |
 | 🌐 **GDB Server** | Integrated GDB server support |
+| 📚 **Usage Guidance** | Built-in help tools for best practices and scenarios |
 
 ### 📋 Prerequisites
 
@@ -433,58 +435,93 @@ device_patch_manager.register_patch(custom_patch)
 
 ### 📚 API Reference
 
-#### Core Functions
+The server provides **41 MCP tools** across 9 categories:
 
-<details>
-<summary>📂 Expand: Connection API</summary>
+#### Connection API (5 tools)
 
 | Function | Parameters | Description |
 |----------|------------|-------------|
-| `connect_device` | `chip_name`, `interface`, `serial_number` | Connect to J-Link device |
+| `list_jlink_devices` | - | List connected J-Link devices |
+| `connect_device` | `serial_number?`, `interface?`, `chip_name?` | Connect to J-Link device |
 | `disconnect_device` | - | Disconnect from current device |
 | `get_connection_status` | - | Get connection status |
-| `list_jlink_devices` | - | List connected J-Link devices |
-| `scan_target_devices` | - | Scan for devices on the bus |
+| `match_chip_name` | `chip_name` | Smart chip name matching |
+
+#### Device Info API (4 tools)
+
+| Function | Parameters | Description |
+|----------|------------|-------------|
 | `get_target_info` | - | Get target device information |
 | `get_target_voltage` | - | Get target voltage |
+| `scan_target_devices` | - | Scan for devices on the bus |
+| `list_device_patches` | - | List loaded device patches |
 
-</details>
-
-<details>
-<summary>📂 Expand: Memory API</summary>
-
-| Function | Parameters | Description |
-|----------|------------|-------------|
-| `read_memory` | `address`, `size`, `width` | Read memory |
-| `write_memory` | `address`, `data`, `width` | Write memory |
-
-</details>
-
-<details>
-<summary>📂 Expand: Flash API</summary>
+#### Memory API (4 tools)
 
 | Function | Parameters | Description |
 |----------|------------|-------------|
-| `erase_flash` | `start_address`, `end_address`, `chip_erase` | Erase flash |
-| `program_flash` | `address`, `data`, `verify` | Program flash |
+| `read_memory` | `address`, `size`, `width?` | Read memory (max 64KB) |
+| `write_memory` | `address`, `data`, `width?` | Write memory |
+| `read_registers` | `register_names?` | Read CPU registers |
+| `write_register` | `register_name`, `value` | Write single register |
+
+#### Flash API (3 tools)
+
+| Function | Parameters | Description |
+|----------|------------|-------------|
+| `erase_flash` | `start_address?`, `end_address?`, `chip_erase?` | Erase flash |
+| `program_flash` | `address`, `data`, `verify?` | Program flash |
 | `verify_flash` | `address`, `data` | Verify flash |
 
-</details>
-
-<details>
-<summary>📂 Expand: Debug API</summary>
+#### Debug API (7 tools)
 
 | Function | Parameters | Description |
 |----------|------------|-------------|
-| `reset_target` | `reset_type` | Reset target |
+| `reset_target` | `reset_type?` | Reset target (normal/halt/core) |
 | `halt_cpu` | - | Halt CPU |
 | `run_cpu` | - | Run CPU |
-| `step_instruction` | - | Single step |
+| `step_instruction` | - | Single step execution |
 | `get_cpu_state` | - | Get CPU state |
 | `set_breakpoint` | `address` | Set breakpoint |
 | `clear_breakpoint` | `address` | Clear breakpoint |
 
-</details>
+#### RTT API (5 tools)
+
+| Function | Parameters | Description |
+|----------|------------|-------------|
+| `rtt_start` | `buffer_index?`, `read_mode?`, `timeout_ms?` | Start RTT |
+| `rtt_stop` | - | Stop RTT |
+| `rtt_read` | `buffer_index?`, `size?`, `timeout_ms?` | Read RTT data |
+| `rtt_write` | `data`, `buffer_index?` | Write RTT data |
+| `rtt_get_status` | - | Get RTT status |
+
+#### GDB Server API (3 tools)
+
+| Function | Parameters | Description |
+|----------|------------|-------------|
+| `start_gdb_server` | `host?`, `port?`, `device?`, `interface?`, `speed?` | Start GDB server |
+| `stop_gdb_server` | - | Stop GDB server |
+| `get_gdb_server_status` | - | Get GDB server status |
+
+#### SVD API (5 tools)
+
+| Function | Parameters | Description |
+|----------|------------|-------------|
+| `list_svd_devices` | - | List available SVD devices |
+| `get_svd_peripherals` | `device_name` | Get device peripherals |
+| `get_svd_registers` | `device_name`, `peripheral_name` | Get peripheral registers |
+| `read_register_with_fields` | `device_name`, `peripheral_name`, `register_name` | Read register with field parsing |
+| `parse_register_value` | `device_name`, `peripheral_name`, `register_name`, `value` | Parse register value only |
+
+#### Guidance API (5 tools)
+
+| Function | Parameters | Description |
+|----------|------------|-------------|
+| `get_usage_guidance` | `category?`, `include_examples?` | Get tool usage guide |
+| `get_best_practices` | `task_type` | Get best practices |
+| `list_scenarios` | - | List usage scenarios |
+| `get_forbidden_operations` | - | Get forbidden operations |
+| `get_system_prompt` | `prompt_name?` | Get system/custom prompt |
 
 ### 🐛 Troubleshooting
 
@@ -568,14 +605,16 @@ JLink MCP Server 是一个功能强大的调试工具，通过模型上下文协
 | 特性 | 描述 |
 |------|------|
 | 🔌 **设备连接** | 通过SWD/JTAG连接，支持自动芯片检测 |
+| 🔍 **智能芯片匹配** | 智能芯片名称匹配（如 `FC7300F4MDD` → `FC7300F4MDDxXxxxT1C`） |
 | 💾 **内存操作** | 支持可配置访问宽度（8/16/32位）的内存读写 |
 | 🔥 **Flash编程** | 程序烧录、擦除和验证 |
 | 🎯 **调试控制** | 暂停、运行、单步执行及断点设置 |
 | 📊 **寄存器访问** | 读写CPU寄存器，支持SVD字段解析 |
 | 📡 **RTT支持** | 通过Segger RTT进行实时数据传输 |
-| 🔧 **SVD集成** | 通过SVD文件访问外设寄存器 |
+| 🔧 **SVD集成** | 通过SVD文件访问外设寄存器，支持Pickle缓存 |
 | 🧩 **插件架构** | 可扩展的设备特定补丁系统 |
 | 🌐 **GDB服务器** | 集成GDB服务器支持 |
+| 📚 **使用指南** | 内置帮助工具，提供最佳实践和使用场景 |
 
 ### 📋 前置要求
 
