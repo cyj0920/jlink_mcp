@@ -160,8 +160,36 @@ class DevicePatchInterface:
     @property
     def device_names(self) -> list[str]
     
+    @property
+    def devices(self) -> list[dict]
+    
+    def is_available(self) -> bool
+    
     def match_device_name(self, chip_name: str) -> str | None
+    
+    def find_similar_devices(self, partial_name: str, limit: int) -> list[str]
+    
+    def get_device_name_suggestions(self, partial_name: str) -> str
+    
+    def get_device_info(self, device_name: str) -> dict | None
+    
+    def supports_device(self, device_name: str) -> bool
 ```
+
+#### 接口方法说明
+
+| 方法 | 说明 |
+|------|------|
+| `vendor_name` | 厂商名称（如 Flagchip） |
+| `patch_version` | 补丁版本号（如 v2.45） |
+| `device_names` | 支持的设备名称列表 |
+| `devices` | 设备详细信息列表 |
+| `is_available()` | 检查补丁是否可用 |
+| `match_device_name()` | 智能匹配设备名称 |
+| `find_similar_devices()` | 查找相似设备名称 |
+| `get_device_name_suggestions()` | 获取设备名称建议 |
+| `get_device_info()` | 获取设备详细信息 |
+| `supports_device()` | 检查是否支持设备 |
 
 ---
 

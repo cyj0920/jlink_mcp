@@ -148,16 +148,6 @@ def run_cpu() -> Dict[str, Any]:
                 "suggestion": "请检查目标芯片状态，尝试复位后重试"
             }
         }
-    except Exception as e:
-        logger.error(f"运行 CPU 失败: {e}")
-        return {
-            "success": False,
-            "error": {
-                "code": JLinkErrorCode.UNKNOWN_ERROR.value[0],
-                "description": str(e),
-                "suggestion": "请检查目标是否已暂停"
-            }
-        }
 
 
 def step_instruction() -> Dict[str, Any]:

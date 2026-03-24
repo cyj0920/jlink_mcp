@@ -1,5 +1,6 @@
 """J-Link GDB Server Management / J-Link GDB Server 管理."""
 
+import subprocess
 import threading
 import time
 from typing import Optional, Dict, Any

@@ -34,7 +34,7 @@ def rtt_start(
         - buffer_index: 缓冲区索引
         - message: 状态信息
     """
-    global _rtt_started, _rttt_config
+    global _rtt_started, _rtt_config
 
     try:
         if _rtt_started:

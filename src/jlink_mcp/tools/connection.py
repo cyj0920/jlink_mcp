@@ -61,20 +61,31 @@ def connect_device(serial_number: str | None = None, interface: str | None = Non
         }
     except Exception as e:
         logger.error(f"连接失败: {e}")
+        from ..exceptions import JLinkErrorCode, JLinkMCPError
+        
         error_msg = str(e)
-
+        code = JLinkErrorCode.CONNECTION_FAILED
+        
         # 检查是否是设备不支持的错误
         if "unsupported device" in error_msg.lower() or "not found" in error_msg.lower():
+            code = JLinkErrorCode.DEVICE_NOT_FOUND
             from ..device_patch_manager import device_patch_manager
+            suggestion = "请检查设备连接或尝试其他芯片名称"
             if chip_name:
-                # 提供设备名称建议
                 suggestions = device_patch_manager.get_device_name_suggestions(chip_name)
-                error_msg = f"设备 '{chip_name}' 不受支持。\n{suggestions}"
+                suggestion = suggestions
+        else:
+            suggestion = "请检查设备连接状态，尝试重新插拔设备"
 
         return {
             "success": False,
             "serial_number": None,
-            "message": error_msg
+            "error": {
+                "code": code.value[0],
+                "description": code.value[1],
+                "detail": error_msg,
+                "suggestion": suggestion
+            }
         }
 
 
@@ -98,9 +109,15 @@ def disconnect_device() -> Dict[str, Any]:
         }
     except Exception as e:
         logger.error(f"断开连接失败: {e}")
+        from ..exceptions import JLinkErrorCode
         return {
             "success": False,
-            "message": str(e)
+            "error": {
+                "code": JLinkErrorCode.CONNECTION_LOST.value[0],
+                "description": JLinkErrorCode.CONNECTION_LOST.value[1],
+                "detail": str(e),
+                "suggestion": JLinkErrorCode.CONNECTION_LOST.value[2]
+            }
         }
 
 

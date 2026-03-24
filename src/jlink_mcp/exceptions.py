@@ -12,6 +12,7 @@ class JLinkErrorCode(Enum):
     NOT_INITIALIZED = (2, "JLink 未初始化", "请先调用 connect_device 建立连接")
     ALREADY_CONNECTED = (3, "JLink 已连接", "如需重新连接，请先调用 disconnect_device")
     INVALID_PARAMETER = (4, "参数无效", "请检查传入的参数类型和值是否正确")
+    NOT_FOUND = (5, "资源未找到", "请检查请求的资源名称是否正确")
 
     # 连接错误 (100-199)
     DEVICE_NOT_FOUND = (100, "未找到 JLink 设备", "请检查设备是否已连接 USB 或供电")
