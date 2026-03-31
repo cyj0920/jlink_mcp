@@ -19,6 +19,15 @@ class ServerConfig(BaseModel):
     system_prompt: Optional[str] = Field(default=None, description="系统提示词")
     custom_prompts: Dict[str, str] = Field(default_factory=dict, description="自定义提示词字典")
 
+    # Semantic Search Configuration / 语义检索配置
+    semantic_enabled: bool = Field(default=False, description="是否启用语义检索功能（默认关闭）")
+    semantic_embedding_model: str = Field(default="text-embedding-ada-002", description="嵌入模型名称（OpenAI 或 OpenRouter）")
+    semantic_base_url: Optional[str] = Field(default=None, description="API base URL（用于 OpenRouter: https://openrouter.ai/api/v1）")
+    semantic_top_k: int = Field(default=3, ge=1, le=10, description="默认返回工具数量")
+    semantic_threshold: float = Field(default=0.5, ge=0.0, le=1.0, description="默认相似度阈值")
+    semantic_cache_enabled: bool = Field(default=True, description="是否启用嵌入缓存")
+    semantic_api_key: Optional[str] = Field(default=None, description="API Key（可选，也可通过环境变量 OPENAI_API_KEY 或 OPENROUTER_API_KEY 设置）")
+
 
 class ConfigManager:
     """配置管理器（单例模式）.
@@ -132,6 +141,77 @@ class ConfigManager:
             logger.info(f"自定义提示词已移除: {name}")
             return True
         return False
+
+    # ========================================
+    # Semantic Search Configuration Methods / 语义检索配置方法
+    # ========================================
+
+    def get_semantic_config(self) -> Dict[str, Any]:
+        """获取语义检索配置.
+
+        Returns:
+            语义检索配置字典
+        """
+        return {
+            "enabled": self._config.semantic_enabled,
+            "embedding_model": self._config.semantic_embedding_model,
+            "base_url": self._config.semantic_base_url,
+            "top_k": self._config.semantic_top_k,
+            "threshold": self._config.semantic_threshold,
+            "cache_enabled": self._config.semantic_cache_enabled,
+            "api_key_configured": self._config.semantic_api_key is not None or "OPENAI_API_KEY" in __import__('os').environ or "OPENROUTER_API_KEY" in __import__('os').environ
+        }
+
+    def set_semantic_enabled(self, enabled: bool) -> None:
+        """启用或禁用语义检索.
+
+        Args:
+            enabled: 是否启用
+        """
+        self._config.semantic_enabled = enabled
+        if enabled:
+            logger.info("语义检索功能已启用")
+            # 初始化语义注册表
+            try:
+                from .semantic_registry import semantic_registry
+                semantic_registry.initialize()
+                logger.info("语义注册表初始化成功")
+            except Exception as e:
+                logger.warning(f"语义注册表初始化失败: {e}")
+        else:
+            logger.info("语义检索功能已禁用")
+
+    def set_semantic_api_key(self, api_key: str) -> None:
+        """设置 API Key.
+
+        Args:
+            api_key: API Key
+        """
+        self._config.semantic_api_key = api_key
+        logger.info("API Key 已配置")
+
+    def set_semantic_base_url(self, base_url: str) -> None:
+        """设置 API base URL.
+
+        Args:
+            base_url: Base URL（例如：https://openrouter.ai/api/v1）
+        """
+        self._config.semantic_base_url = base_url
+        logger.info(f"API base URL 已设置为: {base_url}")
+
+    def set_semantic_embedding_model(self, model: str) -> None:
+        """设置嵌入模型名称.
+
+        Args:
+            model: 模型名称（例如：text-embedding-ada-002 或 openai/text-embedding-ada-002）
+        """
+        self._config.semantic_embedding_model = model
+        logger.info(f"嵌入模型已设置为: {model}")
+
+    def clear_semantic_api_key(self) -> None:
+        """清除 API Key（将使用环境变量）."""
+        self._config.semantic_api_key = None
+        logger.info("API Key 已清除，将使用环境变量")
 
     def _get_default_system_prompt(self) -> str:
         """获取默认系统提示词.

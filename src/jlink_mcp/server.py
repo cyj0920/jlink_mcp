@@ -78,6 +78,10 @@ from .tools.guidance import (
     list_scenarios as _list_scenarios,
     get_forbidden_operations as _get_forbidden_operations,
 )
+from .tools.semantic import (
+    semantic_search_tools as _semantic_search_tools,
+    get_semantic_stats as _get_semantic_stats,
+)
 
 # 创建 FastMCP 实例
 mcp = FastMCP("jlink-mcp-server")
@@ -688,6 +692,61 @@ async def get_forbidden_operations() -> dict:
         List of forbidden operations and their reasons / 禁止操作列表和原因说明
     """
     return _get_forbidden_operations()
+
+
+# ========================================
+# Semantic Search Tools (2) / 语义检索工具 (2个)
+# ========================================
+
+@mcp.tool()
+async def semantic_search_tools(query: str, top_k: int = 3, threshold: float = 0.5) -> dict:
+    """Semantic Search Tools - Recommend relevant tools based on natural language query / 语义搜索工具 - 根据自然语言查询推荐相关工具.
+
+    Uses vector embedding technology to intelligently match user queries with available tools.
+    使用向量嵌入技术，智能匹配用户查询与可用工具。
+
+    This can significantly reduce AI model token consumption (expected 95-99% savings).
+    可以大幅减少 AI 模型的 Token 消耗（预期节省 95-99%）。
+
+    Examples / 示例：
+        - "如何读取寄存器?" (How to read registers?) → Returns read_registers, read_register_with_fields
+        - "如何烧录固件?" (How to flash firmware?) → Returns erase_flash, program_flash, verify_flash
+        - "如何查看实时日志?" (How to view real-time logs?) → Returns rtt_start, rtt_read
+        - "read memory" → Returns read_memory, read_registers
+        - "connect to device" → Returns connect_device, list_jlink_devices
+
+    Args:
+        query: User query in natural language (Chinese or English) / 用户自然语言查询（中文或英文）
+        top_k: Number of tools to return (default: 3, range: 1-10) / 返回工具数量（默认：3，范围：1-10）
+        threshold: Similarity threshold (default: 0.5, range: 0-1) / 相似度阈值（默认：0.5，范围：0-1）
+
+    Returns:
+        Search results containing relevant tools with scores / 包含相关工具及分数的搜索结果
+
+    Notes:
+        - This tool requires OpenAI API key to be configured / 此工具需要配置 OpenAI API Key
+        - First search will generate embeddings for all tools (may take 1-2 seconds) / 首次搜索将为所有工具生成嵌入（可能需要 1-2 秒）
+        - Subsequent searches will be fast (<50ms) due to caching / 后续搜索将很快（<50ms），因为缓存
+        - Supports both Chinese and English queries / 支持中文和英文查询
+    """
+    return _semantic_search_tools(query, top_k, threshold)
+
+
+@mcp.tool()
+async def get_semantic_stats() -> dict:
+    """Get Semantic Search Statistics / 获取语义搜索统计信息.
+
+    Returns statistics about the semantic search system including:
+    返回语义搜索系统的统计信息，包括：
+    - Total number of tools / 工具总数
+    - Number of categories / 分类数量
+    - Initialization status / 初始化状态
+    - Embedding cache statistics / 嵌入缓存统计
+
+    Returns:
+        Statistics about the semantic search system / 语义搜索系统的统计信息
+    """
+    return _get_semantic_stats()
 
 
 @mcp.tool()
