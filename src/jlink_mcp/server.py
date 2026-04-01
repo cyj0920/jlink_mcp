@@ -72,6 +72,11 @@ from .tools.svd import (
     read_register_with_fields as _read_register_with_fields,
     parse_register_value as _parse_register_value,
 )
+from .tools.configuration import (
+    get_server_config as _get_server_config,
+    get_server_capabilities as _get_server_capabilities,
+    diagnose_environment as _diagnose_environment,
+)
 from .tools.guidance import (
     get_usage_guidance as _get_usage_guidance,
     get_best_practices as _get_best_practices,
@@ -628,7 +633,7 @@ async def parse_register_value(
 
 
 # ========================================
-# Usage Guidance and Configuration Management Tools (5) / 使用指南和配置管理工具 (5个)
+# Usage Guidance and Configuration Management Tools (8) / 使用指南和配置管理工具 (8个)
 # ========================================
 
 @mcp.tool()
@@ -692,6 +697,36 @@ async def get_forbidden_operations() -> dict:
         List of forbidden operations and their reasons / 禁止操作列表和原因说明
     """
     return _get_forbidden_operations()
+
+
+@mcp.tool()
+async def get_server_config() -> dict:
+    """Get current server configuration / 获取当前服务器配置.
+
+    Returns:
+        Server configuration snapshot / 服务器配置快照
+    """
+    return _get_server_config()
+
+
+@mcp.tool()
+async def get_server_capabilities() -> dict:
+    """Get current server capabilities / 获取当前服务器能力状态.
+
+    Returns:
+        Server capability summary / 服务器能力摘要
+    """
+    return _get_server_capabilities()
+
+
+@mcp.tool()
+async def diagnose_environment() -> dict:
+    """Diagnose environment and resource availability / 诊断环境与资源可用性.
+
+    Returns:
+        Environment diagnosis report / 环境诊断报告
+    """
+    return _diagnose_environment()
 
 
 # ========================================

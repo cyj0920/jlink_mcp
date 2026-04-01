@@ -4,6 +4,7 @@ Manages server global configuration, including default parameters and prompt tem
 管理服务器的全局配置，包括默认参数、提示词模板等。
 """
 
+import os
 from typing import Dict, Any, Optional
 from pydantic import BaseModel, Field
 
@@ -16,6 +17,8 @@ class ServerConfig(BaseModel):
     default_timeout_ms: int = Field(default=10000, description="默认超时时间（毫秒）")
     enable_auto_detect: bool = Field(default=True, description="是否启用自动检测")
     max_memory_read_size: int = Field(default=65536, description="最大内存读取大小（字节）")
+    svd_dir: Optional[str] = Field(default=None, description="外部 SVD 目录")
+    patch_dir: Optional[str] = Field(default=None, description="外部设备补丁目录")
     system_prompt: Optional[str] = Field(default=None, description="系统提示词")
     custom_prompts: Dict[str, str] = Field(default_factory=dict, description="自定义提示词字典")
 
@@ -53,9 +56,11 @@ class ConfigManager:
             return
 
         self._config = ServerConfig()
+        self._env_loaded: Dict[str, Any] = {}
 
         # 初始化默认系统提示词
         self._config.system_prompt = self._get_default_system_prompt()
+        self.load_from_env()
 
         ConfigManager._initialized = True
         logger.debug("ConfigManager 初始化完成")
@@ -80,6 +85,53 @@ class ConfigManager:
                 logger.info(f"配置更新: {key} = {value}")
             else:
                 logger.warning(f"无效的配置项: {key}")
+
+    def load_from_env(self) -> Dict[str, Any]:
+        """从环境变量加载配置."""
+        applied: Dict[str, Any] = {}
+
+        default_interface = os.environ.get("JLINK_DEFAULT_INTERFACE")
+        if default_interface:
+            normalized = default_interface.strip().upper()
+            if normalized in {"SWD", "JTAG"}:
+                self._config.default_interface = normalized
+                applied["JLINK_DEFAULT_INTERFACE"] = normalized
+            else:
+                logger.warning(
+                    "环境变量 JLINK_DEFAULT_INTERFACE=%s 无效，仅支持 SWD/JTAG，已忽略",
+                    default_interface,
+                )
+
+        svd_dir = os.environ.get("JLINK_SVD_DIR")
+        if svd_dir:
+            self._config.svd_dir = svd_dir
+            applied["JLINK_SVD_DIR"] = svd_dir
+
+        patch_dir = os.environ.get("JLINK_PATCH_DIR")
+        if patch_dir:
+            self._config.patch_dir = patch_dir
+            applied["JLINK_PATCH_DIR"] = patch_dir
+
+        semantic_enabled = os.environ.get("JLINK_SEMANTIC_ENABLED")
+        if semantic_enabled is not None:
+            enabled = semantic_enabled.strip().lower() in {"1", "true", "yes", "on"}
+            self._config.semantic_enabled = enabled
+            applied["JLINK_SEMANTIC_ENABLED"] = enabled
+
+        self._env_loaded = applied
+        if applied:
+            logger.info("已从环境变量加载配置: %s", ", ".join(applied.keys()))
+        return applied
+
+    def get_env_config(self) -> Dict[str, Any]:
+        """获取从环境变量加载的配置."""
+        return self._env_loaded.copy()
+
+    def get_runtime_config(self) -> Dict[str, Any]:
+        """获取当前运行时配置快照."""
+        runtime = self._config.model_dump()
+        runtime["env_overrides"] = self.get_env_config()
+        return runtime
 
     def get_system_prompt(self) -> str:
         """获取系统提示词.

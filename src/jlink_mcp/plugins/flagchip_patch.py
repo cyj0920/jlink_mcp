@@ -15,6 +15,7 @@ from functools import lru_cache
 import os
 
 from ..device_patch_interface import DevicePatchInterface
+from ..config_manager import config_manager
 from ..utils import logger
 
 
@@ -27,7 +28,7 @@ class FlagchipPatch(DevicePatchInterface):
     def __init__(self):
         """初始化补丁插件."""
         # 优先使用外部JLink补丁目录（通过环境变量）
-        external_patch_dir = os.environ.get("JLINK_PATCH_DIR")
+        external_patch_dir = config_manager.get_config().patch_dir or os.environ.get("JLINK_PATCH_DIR")
         if external_patch_dir:
             self._patch_path = Path(external_patch_dir) / "JLink_Patch_v2.45" / "JLinkDevices.xml"
             logger.info(f"使用外部JLink补丁目录: {external_patch_dir}")

@@ -65,7 +65,7 @@ iflow
 
 ---
 
-## 工具概览 (41个)
+## 工具概览 (46个)
 
 ### 连接管理 (5个) - 设备发现与连接
 
@@ -153,6 +153,14 @@ iflow
 | `get_forbidden_operations` | 获取禁止操作列表 |
 | `get_system_prompt` | 获取系统提示词 |
 
+### 配置诊断 (3个) - 服务状态自检
+
+| 工具 | 功能 |
+|------|------|
+| `get_server_config` | 获取当前服务器运行时配置 |
+| `get_server_capabilities` | 获取补丁、SVD、GDB Server 等能力状态 |
+| `diagnose_environment` | 诊断资源路径、缺失项和修复建议 |
+
 ---
 
 ## 快速示例
@@ -194,7 +202,7 @@ program_flash(address=0x08000000, data=firmware_data)
 ```
 jlink_mcp/
 ├── src/jlink_mcp/          # 源代码
-│   ├── tools/              # 工具函数 (41个)
+│   ├── tools/              # 工具函数 (46个)
 │   ├── models/             # 数据模型
 │   ├── plugins/            # 插件 (Flagchip)
 │   └── resources/          # 静态资源
@@ -295,3 +303,5 @@ read_registers(register_names=["R0", "PC"])
 # 断开
 disconnect_device()
 ```
+
+

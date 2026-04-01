@@ -10,6 +10,7 @@ This package contains all MCP tool implementations, grouped by function.
 - debug: Debug control / 调试控制
 - rtt: RTT logging / RTT 日志
 - svd: SVD register parsing / SVD 寄存器解析
+- configuration: Server configuration and capability diagnostics / 服务器配置与能力诊断
 - guidance: Usage guides and best practices / 使用指南和最佳实践
 """
 
@@ -67,6 +68,12 @@ from .svd import (
     parse_register_value,
 )
 
+from .configuration import (
+    get_server_config,
+    get_server_capabilities,
+    diagnose_environment,
+)
+
 from .guidance import (
     get_usage_guidance,
     get_best_practices,
@@ -114,6 +121,10 @@ __all__ = [
     "get_svd_registers",
     "read_register_with_fields",
     "parse_register_value",
+    # 配置与诊断
+    "get_server_config",
+    "get_server_capabilities",
+    "diagnose_environment",
     # 使用指南
     "get_usage_guidance",
     "get_best_practices",

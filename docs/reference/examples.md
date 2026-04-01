@@ -289,6 +289,11 @@ list_scenarios()
 # 禁止操作
 get_forbidden_operations()
 
+# 配置与环境诊断
+get_server_config()
+get_server_capabilities()
+diagnose_environment()
+
 # 系统提示词
 get_system_prompt()
 ```
@@ -518,3 +523,4 @@ finally:
 3. **芯片名称**：支持简化名称自动匹配
 4. **默认接口**：JTAG
 5. **使用完毕**：记得调用 disconnect_device()
+

@@ -109,7 +109,7 @@ iflow mcp add-json --scope user jlink-mcp "{\"command\":\"python\",\"args\":[\"-
 iflow mcp list
 ```
 
-应该能看到 `jlink-mcp` 及其 41 个工具。
+应该能看到 `jlink-mcp` 及其 46 个工具。
 
 ### 2. iFlow CLI 内验证
 
@@ -297,3 +297,4 @@ iflow mcp remove jlink-mcp --scope user
 - [快速开始](./quickstart.md)
 - [API 文档](../reference/api.md)
 - [使用示例](../reference/examples.md)
+

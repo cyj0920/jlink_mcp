@@ -26,6 +26,11 @@ from jlink_mcp.tools.svd import (
     get_svd_registers,
     parse_register_value
 )
+from jlink_mcp.tools.configuration import (
+    get_server_config,
+    get_server_capabilities,
+    diagnose_environment,
+)
 
 from jlink_mcp.exceptions import JLinkMCPError, JLinkErrorCode
 from jlink_mcp.models.device import TargetInterface
@@ -451,6 +456,94 @@ class TestParseRegisterValue:
         assert result["success"] is False
 
 
+class TestConfigurationTools:
+    """测试配置与环境诊断工具."""
+
+    @patch('jlink_mcp.tools.configuration.config_manager')
+    def test_get_server_config_success(self, mock_config_manager):
+        """测试获取运行时配置快照."""
+        mock_config_manager.get_runtime_config.return_value = {
+            "default_interface": "SWD",
+            "svd_dir": "C:/svd",
+            "env_overrides": {"JLINK_SVD_DIR": "C:/svd"},
+        }
+
+        result = get_server_config()
+
+        assert result["success"] is True
+        assert result["data"]["default_interface"] == "SWD"
+        assert result["data"]["env_overrides"]["JLINK_SVD_DIR"] == "C:/svd"
+
+    @patch('jlink_mcp.tools.configuration.gdb_server_manager')
+    @patch('jlink_mcp.tools.configuration.jlink_manager')
+    @patch('jlink_mcp.tools.configuration.svd_manager')
+    @patch('jlink_mcp.tools.configuration.device_patch_manager')
+    @patch('jlink_mcp.tools.configuration.config_manager')
+    def test_get_server_capabilities_success(
+        self,
+        mock_config_manager,
+        mock_patch_manager,
+        mock_svd_manager,
+        mock_jlink_manager,
+        mock_gdb_server,
+    ):
+        """测试获取能力摘要."""
+        mock_config_manager.get_config.return_value = Mock(
+            default_interface="SWD",
+            semantic_enabled=True,
+        )
+        mock_patch_manager.get_patch_info.return_value = [{"vendor_name": "Flagchip"}]
+        mock_patch_manager.patch_count = 1
+        mock_patch_manager.get_all_device_names.return_value = ["FC7300F4MDSxXxxxT1C"]
+        mock_svd_manager.is_available.return_value = True
+        mock_svd_manager.device_names = ["FC7300F4MDSxXxxxT1C"]
+        mock_jlink_manager.is_connected = True
+        mock_jlink_manager.is_target_connected = True
+        mock_gdb_server._find_jlink_gdbserver_exe.return_value = 'C:/SEGGER/JLinkGDBServer.exe'
+        mock_gdb_server.is_running = False
+
+        result = get_server_capabilities()
+
+        assert result["success"] is True
+        assert result["data"]["private_patch_loaded"] is True
+        assert result["data"]["svd_loaded"] is True
+        assert result["data"]["resource_mode"] == "mixed"
+        assert "private" in result["data"]["available_modes"]
+
+    @patch('jlink_mcp.tools.configuration.gdb_server_manager')
+    @patch('jlink_mcp.tools.configuration.device_patch_manager')
+    @patch('jlink_mcp.tools.configuration.svd_manager')
+    @patch('jlink_mcp.tools.configuration.config_manager')
+    def test_diagnose_environment_reports_missing_resources(
+        self,
+        mock_config_manager,
+        mock_svd_manager,
+        mock_patch_manager,
+        mock_gdb_server,
+    ):
+        """测试环境诊断在资源缺失时给出告警和建议."""
+        mock_config_manager.get_config.return_value = Mock(
+            default_interface="JTAG",
+            svd_dir=None,
+            patch_dir=None,
+            semantic_enabled=False,
+        )
+        mock_config_manager.get_env_config.return_value = {}
+        mock_svd_manager.is_available.return_value = False
+        mock_patch_manager.patch_count = 0
+        mock_patch_manager.available_patches = []
+        mock_gdb_server._find_jlink_gdbserver_exe.return_value = None
+
+        result = diagnose_environment()
+
+        assert result["success"] is True
+        assert result["data"]["checks"]["svd_loaded"] is False
+        assert result["data"]["checks"]["patch_loaded"] is False
+        assert any('SVD resources are not loaded' in item for item in result["data"]["warnings"])
+        assert any('JLINK_PATCH_DIR' in item for item in result["data"]["recommendations"])
+        assert any('JLINK_DEFAULT_INTERFACE=SWD' in item for item in result["data"]["recommendations"])
+
+
 # ==================== 边界测试 ====================
 
 class TestBoundaryConditions:
@@ -512,3 +605,4 @@ class TestErrorHandling:
         result = read_memory(address=0x20000000, size=4, width=32)
 
         assert result["success"] is False
+

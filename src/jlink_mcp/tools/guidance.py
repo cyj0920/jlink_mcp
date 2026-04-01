@@ -98,6 +98,14 @@ TOOL_CATEGORIES = {
             "get_forbidden_operations"
         ]
     },
+    "配置诊断": {
+        "description": "服务器配置、能力探测和环境诊断",
+        "tools": [
+            "get_server_config",
+            "get_server_capabilities",
+            "diagnose_environment"
+        ]
+    },
     "语义检索": {
         "description": "基于语义相似度的工具搜索和统计",
         "tools": [
@@ -192,6 +200,16 @@ USAGE_SCENARIOS = {
             "5. rtt_stop() - 停止 RTT（完成后）"
         ],
         "expected_time": "持续使用"
+    },
+    "环境诊断": {
+        "description": "检查服务器配置、资源加载状态和环境依赖",
+        "steps": [
+            "1. get_server_config() - 查看当前运行时配置和环境变量覆盖",
+            "2. get_server_capabilities() - 查看补丁、SVD、GDB Server 等能力状态",
+            "3. diagnose_environment() - 检查资源路径、缺失项和建议动作"
+        ],
+        "example": "diagnose_environment()  # 检查 SVD/补丁/GDB Server 是否可用",
+        "expected_time": "1-3 秒"
     },
     "计算波特率": {
         "description": "计算 CAN 控制器的波特率配置",
@@ -384,10 +402,11 @@ def get_usage_guidance(category: str | None = None, include_examples: bool = Tru
         # 快速开始指南
         quick_start = [
             "1. 调用 get_usage_guidance() 查看可用工具",
-            "2. 调用 list_jlink_devices() 列出设备",
-            "3. 调用 connect_device() 连接设备",
-            "4. 调用 get_connection_status() 确认连接",
-            "5. 根据需要调用其他工具执行操作"
+            "2. 调用 get_server_capabilities() 或 diagnose_environment() 检查服务器能力和资源状态",
+            "3. 调用 list_jlink_devices() 列出设备",
+            "4. 调用 connect_device() 连接设备",
+            "5. 调用 get_connection_status() 确认连接",
+            "6. 根据需要调用其他工具执行操作"
         ]
 
         logger.info(f"获取使用指南: category={category}, tools={total_tools}")
@@ -542,3 +561,4 @@ def get_forbidden_operations() -> Dict[str, Any]:
             "performance": "避免不必要的操作可以显著提升响应速度"
         }
     }
+

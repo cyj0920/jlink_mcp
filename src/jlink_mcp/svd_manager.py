@@ -24,6 +24,7 @@ from .models.svd import (
     DeviceSVD, PeripheralInfo, RegisterInfo, FieldInfo,
     CPUInfo, EnumeratedValue
 )
+from .config_manager import config_manager
 from .utils import logger
 
 
@@ -50,7 +51,7 @@ class SVDManager:
             return
 
         # 优先使用外部SVD目录（通过环境变量）
-        external_svd_dir = os.environ.get("JLINK_SVD_DIR")
+        external_svd_dir = config_manager.get_config().svd_dir or os.environ.get("JLINK_SVD_DIR")
         if external_svd_dir:
             self._svd_path = Path(external_svd_dir)
             logger.info(f"使用外部SVD目录: {external_svd_dir}")
