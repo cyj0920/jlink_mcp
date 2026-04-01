@@ -34,7 +34,7 @@ JLink MCP Server is a comprehensive debugging tool that integrates J-Link debugg
 
 | Feature | Description |
 |---------|-------------|
-| 🔌 **Device Connection** | Connect via SWD/JTAG with automatic chip detection |
+| 🔌 **Device Connection** | Connect via SWD/JTAG with auto-detect support (`chip_name=None` or `"auto"`) |
 | 🔍 **Smart Chip Matching** | Intelligent chip name matching (e.g., `FC7300F4MDD` → `FC7300F4MDDxXxxxT1C`) |
 | 💾 **Memory Operations** | Read/write memory with configurable access widths (8/16/32-bit) |
 | 🔥 **Flash Programming** | Program, erase, and verify flash memory |
@@ -128,7 +128,9 @@ Add to your MCP configuration file (typically `~/.config/mcp/settings.json` or `
 
 ```python
 # Automatic chip detection (recommended)
+# Both chip_name=None and chip_name="auto" trigger the same autodetect flow
 connect_device(chip_name="auto", interface="JTAG")
+connect_device(chip_name=None, interface="JTAG")
 
 # Connect with specific chip name
 connect_device(chip_name="STM32F407VG", interface="SWD")
@@ -204,7 +206,7 @@ verify_flash(
 # Halt the CPU
 halt_cpu()
 
-# Resume execution
+# Resume execution from a halted CPU without resetting the target
 run_cpu()
 
 # Single step execution
@@ -479,7 +481,7 @@ The server provides **41 MCP tools** across 9 categories:
 |----------|------------|-------------|
 | `reset_target` | `reset_type?` | Reset target (normal/halt/core) |
 | `halt_cpu` | - | Halt CPU |
-| `run_cpu` | - | Run CPU |
+| `run_cpu` | - | Resume CPU execution without resetting the target |
 | `step_instruction` | - | Single step execution |
 | `get_cpu_state` | - | Get CPU state |
 | `set_breakpoint` | `address` | Set breakpoint |
@@ -604,7 +606,7 @@ JLink MCP Server 是一个功能强大的调试工具，通过模型上下文协
 
 | 特性 | 描述 |
 |------|------|
-| 🔌 **设备连接** | 通过SWD/JTAG连接，支持自动芯片检测 |
+| 🔌 **设备连接** | 通过SWD/JTAG连接，支持自动检测（`chip_name=None` 或 `"auto"`） |
 | 🔍 **智能芯片匹配** | 智能芯片名称匹配（如 `FC7300F4MDD` → `FC7300F4MDDxXxxxT1C`） |
 | 💾 **内存操作** | 支持可配置访问宽度（8/16/32位）的内存读写 |
 | 🔥 **Flash编程** | 程序烧录、擦除和验证 |
@@ -698,7 +700,9 @@ JLINK_DEFAULT_INTERFACE=JTAG
 
 ```python
 # 自动芯片检测（推荐）
+# chip_name=None 和 chip_name="auto" 都会触发同一套自动检测流程
 connect_device(chip_name="auto", interface="JTAG")
+connect_device(chip_name=None, interface="JTAG")
 
 # 指定芯片名称连接
 connect_device(chip_name="STM32F407VG", interface="SWD")
@@ -774,7 +778,7 @@ verify_flash(
 # 暂停CPU
 halt_cpu()
 
-# 恢复执行
+# 从暂停状态恢复执行，不会复位目标
 run_cpu()
 
 # 单步执行
@@ -1050,7 +1054,7 @@ device_patch_manager.register_patch(custom_patch)
 |------|------|------|
 | `reset_target` | `reset_type` | 复位目标 |
 | `halt_cpu` | - | 暂停CPU |
-| `run_cpu` | - | 运行CPU |
+| `run_cpu` | - | 在不复位目标的情况下恢复 CPU 运行 |
 | `step_instruction` | - | 单步执行 |
 | `get_cpu_state` | - | 获取CPU状态 |
 | `set_breakpoint` | `address` | 设置断点 |

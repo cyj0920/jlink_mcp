@@ -2,6 +2,8 @@
 
 from typing import Dict, Any, List, Optional
 
+import pylink
+
 from ..jlink_manager import jlink_manager
 from ..exceptions import JLinkMCPError, JLinkErrorCode
 from ..models.operations import DebugBreakpoint, CPUState
@@ -113,24 +115,36 @@ def run_cpu() -> Dict[str, Any]:
     """
     try:
         jlink = jlink_manager.get_jlink()
-        # pylink-square 没有 go() 方法，使用 reset 恢复运行
-        # 使用 RESET_DO_NOT_STOP_IF_HALTED 标志，复位后不暂停
-        import pylink
+
         try:
-            jlink.reset(pylink.JLinkFlags.RESET_DO_NOT_STOP_IF_HALTED)
-            logger.info("CPU 已开始运行")
-            return {
-                "success": True,
-                "message": "CPU 已开始运行"
-            }
+            if hasattr(jlink, "halted") and not jlink.halted():
+                logger.info("CPU 已在运行，无需恢复")
+                return {
+                    "success": True,
+                    "message": "CPU 已在运行"
+                }
         except Exception:
-            # 如果标志不支持，使用普通 reset
-            jlink.reset()
-            logger.info("CPU 已开始运行")
-            return {
-                "success": True,
-                "message": "CPU 已开始运行"
-            }
+            logger.debug("无法预先判断 CPU 是否已暂停，继续尝试恢复运行")
+
+        if hasattr(jlink, "restart"):
+            restarted = jlink.restart(skip_breakpoints=True)
+            if restarted:
+                logger.info("CPU 已恢复运行")
+                return {
+                    "success": True,
+                    "message": "CPU 已恢复运行"
+                }
+
+            if hasattr(jlink, "halted") and not jlink.halted():
+                logger.info("CPU 已恢复运行")
+                return {
+                    "success": True,
+                    "message": "CPU 已恢复运行"
+                }
+
+        raise RuntimeError(
+            "当前 pylink 版本不支持在不复位的情况下继续运行目标，请升级 pylink-square 或改用 reset_target"
+        )
     except JLinkMCPError as e:
         logger.error(f"运行 CPU 失败: {e}")
         return {
@@ -145,7 +159,7 @@ def run_cpu() -> Dict[str, Any]:
             "error": {
                 "code": JLinkErrorCode.UNKNOWN_ERROR.value[0],
                 "description": error_msg,
-                "suggestion": "请检查目标芯片状态，尝试复位后重试"
+                "suggestion": "请检查目标芯片状态；如需重新启动程序请使用 reset_target，而非 run_cpu"
             }
         }
 

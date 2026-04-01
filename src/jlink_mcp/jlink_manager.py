@@ -21,6 +21,13 @@ from .utils import logger
 from .device_patch_manager import device_patch_manager
 
 
+AUTO_CHIP_NAME_MARKERS = {"", "auto", "autodetect", "auto-detect"}
+COMMON_AUTO_DETECT_CHIPS = [
+    "STM32F407VG", "STM32F103C8", "STM32L431RC",
+    "nRF52832_xxAA", "ESP32", "MK64FN1M0xxx12"
+]
+
+
 class JLinkManager:
     """JLink 设备管理器（单例模式）.
 
@@ -130,6 +137,7 @@ class JLinkManager:
 
         try:
             self._jlink = pylink.JLink()
+            chip_name = self._normalize_chip_name(chip_name)
 
             # 打开设备
             if serial_number:
@@ -191,65 +199,7 @@ class JLinkManager:
                         conn_err
                     )
             else:
-                # 尝试自动检测芯片
-                logger.info("尝试自动检测芯片...")
-                try:
-                    # 方法1: 尝试使用空字符串
-                    self._jlink.connect("")
-                except Exception as e:
-                    # 方法2: 如果设备补丁可用，优先使用补丁中的设备
-                    patch_devices = device_patch_manager.get_all_device_names()
-                    if patch_devices:
-                        logger.warning(f"自动检测失败: {e}，尝试设备补丁中的设备...")
-                        logger.info(f"设备补丁支持 {len(patch_devices)} 个设备")
-                        for chip in patch_devices:
-                            try:
-                                logger.info(f"尝试设备: {chip}")
-                                self._jlink.connect(chip)
-                                logger.info(f"成功连接到设备: {chip}")
-                                break
-                            except Exception:
-                                continue
-                        else:
-                            # 方法3: 如果补丁设备也失败，尝试常见芯片
-                            logger.warning("补丁设备尝试失败，尝试常见芯片...")
-                            common_chips = [
-                                "STM32F407VG", "STM32F103C8", "STM32L431RC",
-                                "nRF52832_xxAA", "ESP32", "MK64FN1M0xxx12"
-                            ]
-                            for chip in common_chips:
-                                try:
-                                    logger.info(f"尝试芯片: {chip}")
-                                    self._jlink.connect(chip)
-                                    break
-                                except Exception:
-                                    continue
-                            else:
-                                raise ConnectionError(
-                                    f"无法自动检测芯片，请手动指定芯片名称。\n"
-                                    f"设备补丁支持的设备: {patch_devices[:5]}...\n"
-                                    f"常见设备: {common_chips}",
-                                    e
-                                )
-                    else:
-                        # 方法3: 如果没有设备补丁，尝试常见芯片
-                        logger.warning(f"自动检测失败: {e}，尝试常见芯片名称...")
-                        common_chips = [
-                            "STM32F407VG", "STM32F103C8", "STM32L431RC",
-                            "nRF52832_xxAA", "ESP32", "MK64FN1M0xxx12"
-                        ]
-                        for chip in common_chips:
-                            try:
-                                logger.info(f"尝试芯片: {chip}")
-                                self._jlink.connect(chip)
-                                break
-                            except Exception:
-                                continue
-                        else:
-                            raise ConnectionError(
-                                f"无法自动检测芯片，请手动指定芯片名称。支持的芯片: {common_chips}",
-                                e
-                            )
+                self._auto_connect_target()
 
             self._target_connected = self._jlink.target_connected()
 
@@ -263,6 +213,59 @@ class JLinkManager:
             if "not found" in str(e).lower():
                 raise DeviceNotFoundError(f"设备 {serial_number} 未找到", e)
             raise ConnectionError(str(e), e)
+
+    def _normalize_chip_name(self, chip_name: Optional[str]) -> Optional[str]:
+        """Normalize chip name input / 规范化芯片名输入."""
+        if chip_name is None:
+            return None
+
+        normalized = chip_name.strip()
+        if normalized.lower() in AUTO_CHIP_NAME_MARKERS:
+            return None
+
+        return normalized
+
+    def _auto_connect_target(self) -> None:
+        """Auto-detect and connect target / 自动检测并连接目标芯片."""
+        logger.info("尝试自动检测芯片...")
+
+        try:
+            logger.info("自动检测策略 1/3: 让 J-Link 自动识别目标芯片")
+            self._jlink.connect("")
+            logger.info("J-Link 自动识别芯片成功")
+            return
+        except Exception as autodetect_error:
+            logger.warning(f"自动检测失败: {autodetect_error}")
+
+        patch_devices = device_patch_manager.get_all_device_names()
+        if patch_devices:
+            logger.info(f"自动检测策略 2/3: 尝试设备补丁中的 {len(patch_devices)} 个设备")
+            for chip in patch_devices:
+                try:
+                    logger.info(f"尝试补丁设备: {chip}")
+                    self._jlink.connect(chip)
+                    logger.info(f"通过设备补丁成功连接到芯片: {chip}")
+                    return
+                except Exception:
+                    continue
+
+        logger.info(f"自动检测策略 3/3: 尝试常见芯片列表 {COMMON_AUTO_DETECT_CHIPS}")
+        for chip in COMMON_AUTO_DETECT_CHIPS:
+            try:
+                logger.info(f"尝试常见芯片: {chip}")
+                self._jlink.connect(chip)
+                logger.info(f"通过常见芯片回退成功连接到芯片: {chip}")
+                return
+            except Exception:
+                continue
+
+        patch_hint = f"设备补丁支持的设备: {patch_devices[:5]}...\n" if patch_devices else ""
+        raise ConnectionError(
+            "无法自动检测芯片，请手动指定芯片名称。\n"
+            f"{patch_hint}"
+            f"常见设备: {COMMON_AUTO_DETECT_CHIPS}",
+            None
+        )
 
     def disconnect(self) -> None:
         """断开 JLink 连接."""
