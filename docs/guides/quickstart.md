@@ -237,6 +237,9 @@ jlink_mcp/
 | `JLINK_SVD_DIR` | 外部 SVD 文件目录 | `C:\svd_files` |
 | `JLINK_PATCH_DIR` | 外部设备补丁目录 | `C:\patches` |
 | `JLINK_DEFAULT_INTERFACE` | 默认接口类型 | `SWD` |
+| `JLINK_GENERIC_CORE_FALLBACK` | 是否允许回退到通用 Cortex 核心 | `true` |
+| `JLINK_DEFAULT_CORE` | 默认通用核心名称 | `Cortex-M4` |
+| `JLINK_RESOURCE_MODE` | 资源模式配置 | `mixed` |
 
 **设置方式 (Windows)**：
 ```powershell

@@ -112,7 +112,7 @@ async def list_jlink_devices() -> list[dict]:
 
 
 @mcp.tool()
-async def connect_device(serial_number: str | None = None, interface: str = "JTAG", chip_name: str | None = None) -> dict:
+async def connect_device(serial_number: str | None = None, interface: str | None = None, chip_name: str | None = None) -> dict:
     """Connect to JLink device / 连接到 JLink 设备.
 
     Connects to the specified JLink debugger. If no serial number is specified, connects to the first available device.
@@ -120,7 +120,7 @@ async def connect_device(serial_number: str | None = None, interface: str = "JTA
 
     Args:
         serial_number: Device serial number (optional) / 设备序列号（可选）
-        interface: Target interface type (SWD/JTAG, default JTAG) / 目标接口类型（SWD/JTAG，默认 JTAG）
+        interface: Target interface type (SWD/JTAG, optional, defaults to runtime config) / 目标接口类型（SWD/JTAG，可选，默认取运行时配置）
         chip_name: Target chip name (e.g., STM32F407VG, optional) / 目标芯片名称（如 STM32F407VG，可选）
 
     Returns:

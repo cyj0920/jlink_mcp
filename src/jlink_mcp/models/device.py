@@ -15,6 +15,13 @@ class TargetInterface(str, Enum):
     C2 = "C2"
 
 
+class ConnectionMode(str, Enum):
+    """连接模式."""
+    NATIVE = "native"
+    GENERIC = "generic"
+    PRIVATE = "private"
+
+
 class ConnectionStatus(BaseModel):
     """连接状态模型."""
     connected: bool = Field(..., description="是否已连接")
@@ -23,6 +30,10 @@ class ConnectionStatus(BaseModel):
     target_voltage: Optional[float] = Field(None, description="目标电压（V）")
     target_connected: bool = Field(False, description="目标芯片是否已连接")
     firmware_version: Optional[str] = Field(None, description="JLink 固件版本")
+    connection_mode: Optional[ConnectionMode] = Field(None, description="当前连接模式")
+    connection_strategy: Optional[str] = Field(None, description="当前连接策略")
+    requested_chip_name: Optional[str] = Field(None, description="用户请求的芯片名称")
+    connected_chip_name: Optional[str] = Field(None, description="最终连接到的芯片或核心名称")
 
 
 class DeviceInfo(BaseModel):

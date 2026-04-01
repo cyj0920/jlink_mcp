@@ -2,10 +2,42 @@
 
 from typing import List, Dict, Any
 
-from ..jlink_manager import jlink_manager
-from ..models.device import DeviceInfo, ConnectionStatus, TargetInterface
-from ..utils import logger
 from ..config_manager import config_manager
+from ..jlink_manager import jlink_manager
+from ..models.device import TargetInterface
+from ..utils import logger
+
+
+DEVICE_FIELDS = (
+    "serial_number",
+    "product_name",
+    "firmware_version",
+    "hardware_version",
+    "connection_type",
+)
+
+STATUS_FIELDS = (
+    "connected",
+    "device_serial",
+    "target_interface",
+    "target_voltage",
+    "target_connected",
+    "firmware_version",
+    "connection_mode",
+    "connection_strategy",
+    "requested_chip_name",
+    "connected_chip_name",
+)
+
+
+def _serialize_object(obj: Any, fields: tuple[str, ...]) -> Dict[str, Any]:
+    """Serialize pydantic model or mock object / 序列化 Pydantic 模型或 Mock 对象."""
+    model_dump = getattr(obj, "model_dump", None)
+    if callable(model_dump):
+        dumped = model_dump()
+        if isinstance(dumped, dict):
+            return dumped
+    return {field: getattr(obj, field, None) for field in fields}
 
 
 def list_jlink_devices() -> List[Dict[str, Any]]:
@@ -22,7 +54,7 @@ def list_jlink_devices() -> List[Dict[str, Any]]:
         - connection_type: 连接类型（USB/ETH）
     """
     devices = jlink_manager.enumerate_devices()
-    return [device.model_dump() for device in devices]
+    return [_serialize_object(device, DEVICE_FIELDS) for device in devices]
 
 
 def connect_device(serial_number: str | None = None, interface: str | None = None, chip_name: str | None = None) -> Dict[str, Any]:
@@ -33,7 +65,7 @@ def connect_device(serial_number: str | None = None, interface: str | None = Non
 
     Args:
         serial_number: 设备序列号（可选，None 则连接第一个设备）
-        interface: 目标接口类型，支持 "SWD" 或 "JTAG"（可选，默认从配置读取，默认值为 JTAG）
+        interface: 目标接口类型，支持 "SWD" 或 "JTAG"（可选，默认从配置读取）
         chip_name: 目标芯片名称（可选，支持缩写自动匹配，如 FC7300F4MDD）
 
     Returns:
@@ -43,30 +75,36 @@ def connect_device(serial_number: str | None = None, interface: str | None = Non
         - message: 状态信息
     """
     try:
-        # 从配置读取默认接口（如果未指定）
         if interface is None:
             config = config_manager.get_config()
-            interface = config.default_interface  # 默认 JTAG
+            interface = config.default_interface
             logger.debug(f"使用配置的默认接口: {interface}")
 
         interface_enum = TargetInterface(interface.upper())
         jlink_manager.connect(serial_number, interface_enum, chip_name)
         status = jlink_manager.get_connection_status()
+        status_data = _serialize_object(status, STATUS_FIELDS)
 
-        logger.info(f"成功连接到设备: {status.device_serial}")
+        logger.info(f"成功连接到设备: {status_data['device_serial']}")
         return {
             "success": True,
-            "serial_number": status.device_serial,
-            "message": f"成功连接到设备 {status.device_serial}，接口: {interface}"
+            "serial_number": status_data["device_serial"],
+            "mode": status_data["connection_mode"],
+            "strategy": status_data["connection_strategy"],
+            "requested_chip_name": status_data["requested_chip_name"],
+            "connected_chip_name": status_data["connected_chip_name"],
+            "message": (
+                f"成功连接到设备 {status_data['device_serial']}，接口: {interface}，"
+                f"模式: {status_data['connection_mode']}"
+            ),
         }
     except Exception as e:
         logger.error(f"连接失败: {e}")
-        from ..exceptions import JLinkErrorCode, JLinkMCPError
-        
+        from ..exceptions import JLinkErrorCode
+
         error_msg = str(e)
         code = JLinkErrorCode.CONNECTION_FAILED
-        
-        # 检查是否是设备不支持的错误
+
         if "unsupported device" in error_msg.lower() or "not found" in error_msg.lower():
             code = JLinkErrorCode.DEVICE_NOT_FOUND
             from ..device_patch_manager import device_patch_manager
@@ -74,6 +112,11 @@ def connect_device(serial_number: str | None = None, interface: str | None = Non
             if chip_name:
                 suggestions = device_patch_manager.get_device_name_suggestions(chip_name)
                 suggestion = suggestions
+        elif chip_name:
+            suggestion = (
+                "请检查芯片名称、接口类型和目标供电状态；"
+                "如果只需要核心级调试，可尝试启用 JLINK_GENERIC_CORE_FALLBACK"
+            )
         else:
             suggestion = "请检查设备连接状态，尝试重新插拔设备"
 
@@ -84,8 +127,8 @@ def connect_device(serial_number: str | None = None, interface: str | None = Non
                 "code": code.value[0],
                 "description": code.value[1],
                 "detail": error_msg,
-                "suggestion": suggestion
-            }
+                "suggestion": suggestion,
+            },
         }
 
 
@@ -136,13 +179,12 @@ def get_connection_status() -> Dict[str, Any]:
             - target_voltage: 目标电压（V）
             - target_connected: 目标芯片是否已连接
             - firmware_version: JLink 固件版本
-        - message: 状态信息
     """
     try:
         status = jlink_manager.get_connection_status()
         return {
             "success": True,
-            "data": status.model_dump(),
+            "data": _serialize_object(status, STATUS_FIELDS),
             "message": "获取连接状态成功"
         }
     except Exception as e:
@@ -194,12 +236,9 @@ def match_chip_name(chip_name: str) -> Dict[str, Any]:
         }
 
     chip_name = chip_name.strip()
-
-    # 获取最佳匹配（使用设备补丁管理器）
     match_result = device_patch_manager.match_device_name(chip_name)
 
     if not match_result:
-        # 获取所有相似的设备
         all_matches = device_patch_manager.find_similar_devices(chip_name, limit=10)
         suggestion = device_patch_manager.get_device_name_suggestions(chip_name)
         logger.warning(f"芯片名称未找到匹配: '{chip_name}'")
@@ -212,8 +251,6 @@ def match_chip_name(chip_name: str) -> Dict[str, Any]:
         }
 
     matched, patch = match_result
-
-    # 获取所有相似的设备
     all_matches = device_patch_manager.find_similar_devices(chip_name, limit=10)
 
     logger.info(f"芯片名称匹配成功: '{chip_name}' -> '{matched}' (补丁: {patch.vendor_name})")

@@ -51,8 +51,15 @@ def get_server_capabilities() -> Dict[str, Any]:
         capabilities = {
             "default_interface": config.default_interface,
             "generic_core_debug": True,
+            "generic_core_fallback_enabled": config.generic_core_fallback,
+            "default_core": config.default_core,
+            "configured_resource_mode": config.resource_mode,
             "jlink_connected": jlink_manager.is_connected,
             "target_connected": jlink_manager.is_target_connected,
+            "current_connection_mode": jlink_manager.connection_mode,
+            "current_connection_strategy": jlink_manager.connection_strategy,
+            "requested_chip_name": jlink_manager.requested_chip_name,
+            "connected_chip_name": jlink_manager.connected_chip_name,
             "private_patch_loaded": private_patch_loaded,
             "patch_count": device_patch_manager.patch_count,
             "patch_device_count": len(device_patch_manager.get_all_device_names()),
@@ -65,7 +72,7 @@ def get_server_capabilities() -> Dict[str, Any]:
             "resource_mode": _detect_resource_mode(private_patch_loaded, svd_loaded),
             "available_modes": [
                 "native",
-                "generic",
+                *( ["generic"] if config.generic_core_fallback else [] ),
                 *(
                     ["private"]
                     if private_patch_loaded or svd_loaded
@@ -107,6 +114,9 @@ def diagnose_environment() -> Dict[str, Any]:
 
         checks = {
             "default_interface_valid": config.default_interface in {"SWD", "JTAG"},
+            "resource_mode_valid": config.resource_mode in {"generic", "native", "mixed", "private"},
+            "generic_core_fallback_enabled": config.generic_core_fallback,
+            "default_core_configured": bool(config.default_core),
             "svd_configured": bool(config.svd_dir),
             "svd_path_exists": bool(svd_path and svd_path.exists()),
             "svd_loaded": svd_manager.is_available(),
@@ -124,6 +134,8 @@ def diagnose_environment() -> Dict[str, Any]:
             warnings.append("No private patch is loaded; private chip-name matching will be unavailable")
         if not checks["gdb_server_binary_available"]:
             warnings.append("JLinkGDBServer.exe was not found; GDB server tools may be unavailable")
+        if not checks["generic_core_fallback_enabled"]:
+            warnings.append("Generic core fallback is disabled; unsupported chips cannot degrade to core-only debug mode")
 
         recommendations = []
         if not checks["svd_loaded"]:
@@ -132,6 +144,10 @@ def diagnose_environment() -> Dict[str, Any]:
             recommendations.append("Set JLINK_PATCH_DIR to a private patch/provider directory if you need vendor extensions")
         if config.default_interface == "JTAG":
             recommendations.append("If your target prefers SWD, set JLINK_DEFAULT_INTERFACE=SWD")
+        if not checks["generic_core_fallback_enabled"]:
+            recommendations.append("Set JLINK_GENERIC_CORE_FALLBACK=true if you want generic Cortex debug fallback")
+        if not checks["default_core_configured"]:
+            recommendations.append("Set JLINK_DEFAULT_CORE to a generic core such as Cortex-M4")
 
         diagnosis = {
             "env_overrides": env_overrides,
@@ -141,6 +157,14 @@ def diagnose_environment() -> Dict[str, Any]:
                 "gdb_server_binary": gdb_server_path,
             },
             "checks": checks,
+            "runtime": {
+                "default_interface": config.default_interface,
+                "default_core": config.default_core,
+                "resource_mode": config.resource_mode,
+                "current_connection_mode": jlink_manager.connection_mode,
+                "current_connection_strategy": jlink_manager.connection_strategy,
+                "connected_chip_name": jlink_manager.connected_chip_name,
+            },
             "warnings": warnings,
             "recommendations": recommendations,
         }

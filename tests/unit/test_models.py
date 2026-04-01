@@ -17,6 +17,7 @@ from jlink_mcp.models.base import (
 from jlink_mcp.models.device import (
     TargetInterface,
     DeviceInfo,
+    ConnectionMode,
     ConnectionStatus,
     TargetDeviceInfo
 )
@@ -242,12 +243,18 @@ class TestConnectionStatus:
             target_interface=TargetInterface.JTAG,
             target_voltage=3.3,
             target_connected=True,
-            firmware_version="V11.0.0"
+            firmware_version="V11.0.0",
+            connection_mode=ConnectionMode.PRIVATE,
+            connection_strategy="patch_match:Flagchip",
+            requested_chip_name="FC7300F4MDD",
+            connected_chip_name="FC7300F4MDDxXxxxT1C"
         )
         assert status.connected is True
         assert status.device_serial == "941000024"
         assert status.target_interface == TargetInterface.JTAG
         assert status.target_voltage == 3.3
+        assert status.connection_mode == ConnectionMode.PRIVATE
+        assert status.connected_chip_name == "FC7300F4MDDxXxxxT1C"
 
 
 class TestTargetDeviceInfo:

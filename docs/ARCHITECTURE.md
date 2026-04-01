@@ -220,6 +220,9 @@ resources/
 | `JLINK_SVD_DIR` | 外部 SVD 目录 |
 | `JLINK_PATCH_DIR` | 外部设备补丁目录 |
 | `JLINK_DEFAULT_INTERFACE` | 默认接口类型 (SWD/JTAG) |
+| `JLINK_GENERIC_CORE_FALLBACK` | 是否允许回退到通用 Cortex 核心调试 |
+| `JLINK_DEFAULT_CORE` | 默认通用核心名称，如 `Cortex-M4` |
+| `JLINK_RESOURCE_MODE` | 资源模式配置：`generic/native/mixed/private` |
 
 ---
 

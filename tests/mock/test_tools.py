@@ -85,7 +85,11 @@ class TestConnectDevice:
         mock_manager.connect.return_value = None
         mock_manager.get_connection_status.return_value = Mock(
             device_serial="941000024",
-            target_interface=TargetInterface.SWD
+            target_interface=TargetInterface.SWD,
+            connection_mode="native",
+            connection_strategy="explicit_native",
+            requested_chip_name="STM32F407VG",
+            connected_chip_name="STM32F407VG"
         )
 
         result = connect_device(
@@ -96,6 +100,8 @@ class TestConnectDevice:
 
         assert result["success"] is True
         assert result["serial_number"] == "941000024"
+        assert result["mode"] == "native"
+        assert result["connected_chip_name"] == "STM32F407VG"
 
     @patch('jlink_mcp.tools.connection.jlink_manager')
     def test_connect_already_connected(self, mock_manager):
@@ -165,7 +171,11 @@ class TestGetConnectionStatus:
             target_interface=TargetInterface.SWD,
             target_voltage=3.3,
             target_connected=True,
-            firmware_version="V11.0.0"
+            firmware_version="V11.0.0",
+            connection_mode="private",
+            connection_strategy="patch_match:Flagchip",
+            requested_chip_name="FC7300F4MDD",
+            connected_chip_name="FC7300F4MDDxXxxxT1C"
         )
         mock_manager.get_connection_status.return_value = mock_status
 
@@ -174,6 +184,8 @@ class TestGetConnectionStatus:
         assert result["success"] is True
         assert result["data"]["connected"] is True
         assert result["data"]["device_serial"] == "941000024"
+        assert result["data"]["connection_mode"] == "private"
+        assert result["data"]["connected_chip_name"] == "FC7300F4MDDxXxxxT1C"
 
     @patch('jlink_mcp.tools.connection.jlink_manager')
     def test_get_status_not_connected(self, mock_manager):
@@ -184,7 +196,11 @@ class TestGetConnectionStatus:
             target_interface=None,
             target_voltage=None,
             target_connected=False,
-            firmware_version=None
+            firmware_version=None,
+            connection_mode=None,
+            connection_strategy=None,
+            requested_chip_name=None,
+            connected_chip_name=None
         )
         mock_manager.get_connection_status.return_value = mock_status
 
@@ -465,6 +481,9 @@ class TestConfigurationTools:
         mock_config_manager.get_runtime_config.return_value = {
             "default_interface": "SWD",
             "svd_dir": "C:/svd",
+            "generic_core_fallback": True,
+            "default_core": "Cortex-M4",
+            "resource_mode": "mixed",
             "env_overrides": {"JLINK_SVD_DIR": "C:/svd"},
         }
 
@@ -472,6 +491,8 @@ class TestConfigurationTools:
 
         assert result["success"] is True
         assert result["data"]["default_interface"] == "SWD"
+        assert result["data"]["default_core"] == "Cortex-M4"
+        assert result["data"]["generic_core_fallback"] is True
         assert result["data"]["env_overrides"]["JLINK_SVD_DIR"] == "C:/svd"
 
     @patch('jlink_mcp.tools.configuration.gdb_server_manager')
@@ -491,6 +512,9 @@ class TestConfigurationTools:
         mock_config_manager.get_config.return_value = Mock(
             default_interface="SWD",
             semantic_enabled=True,
+            generic_core_fallback=True,
+            default_core="Cortex-M4",
+            resource_mode="mixed",
         )
         mock_patch_manager.get_patch_info.return_value = [{"vendor_name": "Flagchip"}]
         mock_patch_manager.patch_count = 1
@@ -499,6 +523,10 @@ class TestConfigurationTools:
         mock_svd_manager.device_names = ["FC7300F4MDSxXxxxT1C"]
         mock_jlink_manager.is_connected = True
         mock_jlink_manager.is_target_connected = True
+        mock_jlink_manager.connection_mode = "private"
+        mock_jlink_manager.connection_strategy = "patch_match:Flagchip"
+        mock_jlink_manager.requested_chip_name = "FC7300F4MDD"
+        mock_jlink_manager.connected_chip_name = "FC7300F4MDDxXxxxT1C"
         mock_gdb_server._find_jlink_gdbserver_exe.return_value = 'C:/SEGGER/JLinkGDBServer.exe'
         mock_gdb_server.is_running = False
 
@@ -508,6 +536,9 @@ class TestConfigurationTools:
         assert result["data"]["private_patch_loaded"] is True
         assert result["data"]["svd_loaded"] is True
         assert result["data"]["resource_mode"] == "mixed"
+        assert result["data"]["generic_core_fallback_enabled"] is True
+        assert result["data"]["current_connection_mode"] == "private"
+        assert result["data"]["connected_chip_name"] == "FC7300F4MDDxXxxxT1C"
         assert "private" in result["data"]["available_modes"]
 
     @patch('jlink_mcp.tools.configuration.gdb_server_manager')
@@ -527,6 +558,9 @@ class TestConfigurationTools:
             svd_dir=None,
             patch_dir=None,
             semantic_enabled=False,
+            generic_core_fallback=False,
+            default_core="Cortex-M4",
+            resource_mode="mixed",
         )
         mock_config_manager.get_env_config.return_value = {}
         mock_svd_manager.is_available.return_value = False
@@ -539,9 +573,12 @@ class TestConfigurationTools:
         assert result["success"] is True
         assert result["data"]["checks"]["svd_loaded"] is False
         assert result["data"]["checks"]["patch_loaded"] is False
+        assert result["data"]["checks"]["generic_core_fallback_enabled"] is False
         assert any('SVD resources are not loaded' in item for item in result["data"]["warnings"])
+        assert any('Generic core fallback is disabled' in item for item in result["data"]["warnings"])
         assert any('JLINK_PATCH_DIR' in item for item in result["data"]["recommendations"])
         assert any('JLINK_DEFAULT_INTERFACE=SWD' in item for item in result["data"]["recommendations"])
+        assert any('JLINK_GENERIC_CORE_FALLBACK=true' in item for item in result["data"]["recommendations"])
 
 
 # ==================== 边界测试 ====================

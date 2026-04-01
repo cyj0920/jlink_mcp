@@ -4,21 +4,23 @@ import pylink
 from typing import Optional, List
 from contextlib import contextmanager
 
+from .config_manager import config_manager
+from .device_patch_manager import device_patch_manager
 from .exceptions import (
     JLinkMCPError,
     JLinkErrorCode,
     DeviceNotFoundError,
     ConnectionError,
-    OperationError
+    OperationError,
 )
 from .models.device import (
-    DeviceInfo,
+    ConnectionMode,
     ConnectionStatus,
+    DeviceInfo,
     TargetDeviceInfo,
-    TargetInterface
+    TargetInterface,
 )
 from .utils import logger
-from .device_patch_manager import device_patch_manager
 
 
 AUTO_CHIP_NAME_MARKERS = {"", "auto", "autodetect", "auto-detect"}
@@ -52,6 +54,10 @@ class JLinkManager:
         self._device_serial: Optional[str] = None
         self._target_interface: TargetInterface = TargetInterface.JTAG
         self._target_connected: bool = False
+        self._connection_mode: Optional[ConnectionMode] = None
+        self._connection_strategy: Optional[str] = None
+        self._requested_chip_name: Optional[str] = None
+        self._connected_chip_name: Optional[str] = None
 
         JLinkManager._initialized = True
         logger.debug("JLinkManager 初始化完成")
@@ -62,7 +68,6 @@ class JLinkManager:
         if self._jlink is None:
             return False
         try:
-            # 尝试访问设备属性来验证连接
             _ = self._jlink.serial_number
             return True
         except Exception:
@@ -78,6 +83,26 @@ class JLinkManager:
         except Exception:
             return False
 
+    @property
+    def connection_mode(self) -> Optional[str]:
+        """返回当前连接模式字符串."""
+        return self._connection_mode.value if self._connection_mode else None
+
+    @property
+    def connection_strategy(self) -> Optional[str]:
+        """返回当前连接策略."""
+        return self._connection_strategy
+
+    @property
+    def requested_chip_name(self) -> Optional[str]:
+        """返回用户请求的芯片名称."""
+        return self._requested_chip_name
+
+    @property
+    def connected_chip_name(self) -> Optional[str]:
+        """返回最终连接到的芯片或核心名称."""
+        return self._connected_chip_name
+
     def enumerate_devices(self) -> List[DeviceInfo]:
         """枚举所有连接的 JLink 设备.
 
@@ -86,10 +111,8 @@ class JLinkManager:
         """
         devices = []
         try:
-            # 获取 USB 设备列表
             usb_devices = pylink.JLink().connected_emulators()
             for dev in usb_devices:
-                # 安全地获取设备属性
                 serial_number = getattr(dev, 'SerialNumber', 'Unknown')
                 product_name = getattr(dev, 'ProductName', None) or getattr(dev, 'ProductName', 'J-Link')
                 if product_name is None:
@@ -100,7 +123,7 @@ class JLinkManager:
                     product_name=product_name,
                     firmware_version="Unknown",
                     connection_type="USB",
-                    hardware_version=None
+                    hardware_version=None,
                 )
                 devices.append(device_info)
 
@@ -115,7 +138,7 @@ class JLinkManager:
         self,
         serial_number: Optional[str] = None,
         interface: TargetInterface = TargetInterface.JTAG,
-        chip_name: Optional[str] = None
+        chip_name: Optional[str] = None,
     ) -> None:
         """连接到 JLink 设备.
 
@@ -132,14 +155,14 @@ class JLinkManager:
         if self.is_connected:
             raise JLinkMCPError(
                 JLinkErrorCode.ALREADY_CONNECTED,
-                f"已连接到设备 {self._device_serial}"
+                f"已连接到设备 {self._device_serial}",
             )
 
         try:
             self._jlink = pylink.JLink()
-            chip_name = self._normalize_chip_name(chip_name)
+            normalized_chip_name = self._normalize_chip_name(chip_name)
+            self._requested_chip_name = normalized_chip_name
 
-            # 打开设备
             if serial_number:
                 logger.info(f"正在连接设备: {serial_number}")
                 self._jlink.open(serial_no=serial_number)
@@ -147,7 +170,6 @@ class JLinkManager:
                 logger.info("正在连接第一个可用设备")
                 self._jlink.open()
 
-            # 设置接口类型
             self._target_interface = interface
             if interface == TargetInterface.SWD:
                 self._jlink.set_tif(pylink.JLinkInterfaces.SWD)
@@ -156,58 +178,26 @@ class JLinkManager:
             else:
                 raise ConnectionError(f"不支持的接口类型: {interface}")
 
-            # 连接目标芯片
-            if chip_name:
-                original_name = chip_name
-                # 尝试智能匹配设备名称（使用设备补丁管理器）
-                match_result = device_patch_manager.match_device_name(chip_name)
-                if match_result:
-                    matched_name, patch = match_result
-                    if matched_name and matched_name != chip_name:
-                        logger.info(f"设备名称智能匹配: {chip_name} -> {matched_name} (补丁: {patch.vendor_name})")
-                        chip_name = matched_name
-                else:
-                    # 匹配失败，直接报错并提供相似设备建议
-                    similar = device_patch_manager.find_similar_devices(original_name, limit=5)
-                    if similar:
-                        suggestion = f"\n您是否想找以下设备之一:\n  - " + "\n  - ".join(similar)
-                    else:
-                        # 按系列分组显示支持的设备
-                        all_devices = device_patch_manager.get_all_device_names()
-                        normal_devices = [n for n in all_devices
-                                         if not any(k in n for k in ["Unlock", "Factory", "FromRom", "Core", "_64", "ETM"])]
-                        suggestion = f"\n支持的设备:\n  - " + "\n  - ".join(normal_devices[:10])
-                        if len(normal_devices) > 10:
-                            suggestion += f"\n  ... 共 {len(normal_devices)} 个设备"
-                    raise DeviceNotFoundError(
-                        f"芯片名称 '{original_name}' 未找到匹配{suggestion}",
-                        None
-                    )
-
-                logger.info(f"连接到芯片: {chip_name}")
-                try:
-                    self._jlink.connect(chip_name)
-                except Exception as conn_err:
-                    # 连接失败时提供建议
-                    similar = device_patch_manager.find_similar_devices(original_name, limit=3)
-                    if similar:
-                        suggestion = f"\n您是否想找: {', '.join(similar)}"
-                    else:
-                        suggestion = ""
-                    raise ConnectionError(
-                        f"无法连接到芯片 '{original_name}'{suggestion}",
-                        conn_err
-                    )
+            if normalized_chip_name:
+                self._connect_named_target(normalized_chip_name)
             else:
                 self._auto_connect_target()
 
             self._target_connected = self._jlink.target_connected()
-
             self._connected = True
             self._device_serial = self._jlink.serial_number
 
-            logger.info(f"成功连接到设备: {self._device_serial}")
+            logger.info(
+                "成功连接到设备: %s, mode=%s, strategy=%s, target=%s",
+                self._device_serial,
+                self.connection_mode,
+                self.connection_strategy,
+                self._connected_chip_name,
+            )
 
+        except JLinkMCPError:
+            self._cleanup()
+            raise
         except Exception as e:
             self._cleanup()
             if "not found" in str(e).lower():
@@ -225,13 +215,134 @@ class JLinkManager:
 
         return normalized
 
+    def _is_generic_core_name(self, chip_name: Optional[str]) -> bool:
+        """Check whether chip name is a generic core / 判断是否为通用核心名."""
+        if not chip_name:
+            return False
+        return chip_name.strip().lower().startswith("cortex-")
+
+    def _get_generic_core_name(self, preferred: Optional[str] = None) -> str:
+        """Return generic core fallback target / 获取通用核心回退名称."""
+        if self._is_generic_core_name(preferred):
+            return preferred.strip()
+
+        default_core = config_manager.get_config().default_core.strip()
+        return default_core or "Cortex-M4"
+
+    def _resolve_connected_chip_name(self, fallback: Optional[str] = None) -> Optional[str]:
+        """Resolve connected chip name from J-Link / 从 J-Link 获取实际连接名称."""
+        if self._jlink is None:
+            return fallback
+
+        try:
+            device_name = self._jlink.device_name()
+            if device_name:
+                return str(device_name)
+        except Exception:
+            pass
+
+        return fallback
+
+    def _set_connection_context(
+        self,
+        mode: ConnectionMode,
+        strategy: str,
+        connected_chip_name: Optional[str],
+    ) -> None:
+        """Store current connection context / 记录当前连接上下文."""
+        self._connection_mode = mode
+        self._connection_strategy = strategy
+        self._connected_chip_name = connected_chip_name
+
+    def _try_connect_target(
+        self,
+        target_name: str,
+        mode: ConnectionMode,
+        strategy: str,
+    ) -> Optional[str]:
+        """Try connecting target and update mode metadata / 尝试连接目标并更新模式信息."""
+        self._jlink.connect(target_name)
+        connected_chip_name = self._resolve_connected_chip_name(target_name or None)
+        self._set_connection_context(mode, strategy, connected_chip_name)
+        return connected_chip_name
+
+    def _connect_named_target(self, chip_name: str) -> None:
+        """Connect using explicit chip name with layered strategy / 按显式芯片名进行分层连接."""
+        errors: List[str] = []
+        config = config_manager.get_config()
+
+        explicit_mode = ConnectionMode.GENERIC if self._is_generic_core_name(chip_name) else ConnectionMode.NATIVE
+        explicit_strategy = "explicit_generic_core" if explicit_mode == ConnectionMode.GENERIC else "explicit_native"
+
+        try:
+            logger.info("连接策略 1/3: 直接使用 J-Link 原生设备名 %s", chip_name)
+            self._try_connect_target(chip_name, explicit_mode, explicit_strategy)
+            return
+        except Exception as native_error:
+            logger.warning("J-Link 原生设备连接失败: %s", native_error)
+            errors.append(f"native({chip_name}): {native_error}")
+
+        match_result = device_patch_manager.match_device_name(chip_name)
+        if match_result:
+            matched_name, patch = match_result
+            try:
+                logger.info(
+                    "连接策略 2/3: 使用私有补丁匹配 %s -> %s (%s)",
+                    chip_name,
+                    matched_name,
+                    patch.vendor_name,
+                )
+                self._try_connect_target(
+                    matched_name,
+                    ConnectionMode.PRIVATE,
+                    f"patch_match:{patch.vendor_name}",
+                )
+                return
+            except Exception as patch_error:
+                logger.warning("私有补丁设备连接失败: %s", patch_error)
+                errors.append(f"private({matched_name}): {patch_error}")
+        else:
+            errors.append(f"private({chip_name}): no patch match")
+
+        if config.generic_core_fallback:
+            generic_core = self._get_generic_core_name(chip_name)
+            if generic_core and generic_core != chip_name:
+                try:
+                    logger.info("连接策略 3/3: 使用通用核心回退 %s", generic_core)
+                    self._try_connect_target(
+                        generic_core,
+                        ConnectionMode.GENERIC,
+                        "generic_fallback",
+                    )
+                    return
+                except Exception as generic_error:
+                    logger.warning("通用核心回退连接失败: %s", generic_error)
+                    errors.append(f"generic({generic_core}): {generic_error}")
+        else:
+            errors.append("generic fallback disabled")
+
+        similar = device_patch_manager.find_similar_devices(chip_name, limit=5)
+        suggestion = (
+            f"\n您是否想找: {', '.join(similar)}"
+            if similar
+            else "\n如需通用核心调试，可启用 JLINK_GENERIC_CORE_FALLBACK 或显式传入 Cortex-M 系列核心名称"
+        )
+        raise ConnectionError(
+            "无法连接到芯片 "
+            f"'{chip_name}'。已尝试 native -> private patch -> generic fallback。"
+            f"\n详细信息: {'; '.join(errors)}"
+            f"{suggestion}",
+            None,
+        )
+
     def _auto_connect_target(self) -> None:
         """Auto-detect and connect target / 自动检测并连接目标芯片."""
         logger.info("尝试自动检测芯片...")
+        config = config_manager.get_config()
 
         try:
-            logger.info("自动检测策略 1/3: 让 J-Link 自动识别目标芯片")
-            self._jlink.connect("")
+            logger.info("自动检测策略 1/4: 让 J-Link 自动识别目标芯片")
+            self._try_connect_target("", ConnectionMode.NATIVE, "auto_detect")
             logger.info("J-Link 自动识别芯片成功")
             return
         except Exception as autodetect_error:
@@ -239,32 +350,60 @@ class JLinkManager:
 
         patch_devices = device_patch_manager.get_all_device_names()
         if patch_devices:
-            logger.info(f"自动检测策略 2/3: 尝试设备补丁中的 {len(patch_devices)} 个设备")
+            logger.info(f"自动检测策略 2/4: 尝试设备补丁中的 {len(patch_devices)} 个设备")
             for chip in patch_devices:
                 try:
                     logger.info(f"尝试补丁设备: {chip}")
-                    self._jlink.connect(chip)
+                    self._try_connect_target(
+                        chip,
+                        ConnectionMode.PRIVATE,
+                        "patch_scan",
+                    )
                     logger.info(f"通过设备补丁成功连接到芯片: {chip}")
                     return
                 except Exception:
                     continue
 
-        logger.info(f"自动检测策略 3/3: 尝试常见芯片列表 {COMMON_AUTO_DETECT_CHIPS}")
+        if config.generic_core_fallback:
+            generic_core = self._get_generic_core_name()
+            try:
+                logger.info(f"自动检测策略 3/4: 尝试通用核心回退 {generic_core}")
+                self._try_connect_target(
+                    generic_core,
+                    ConnectionMode.GENERIC,
+                    "generic_fallback",
+                )
+                logger.info(f"通过通用核心回退成功连接到目标: {generic_core}")
+                return
+            except Exception as generic_error:
+                logger.warning(f"通用核心回退失败: {generic_error}")
+
+        logger.info(f"自动检测策略 4/4: 尝试常见芯片列表 {COMMON_AUTO_DETECT_CHIPS}")
         for chip in COMMON_AUTO_DETECT_CHIPS:
             try:
                 logger.info(f"尝试常见芯片: {chip}")
-                self._jlink.connect(chip)
+                self._try_connect_target(
+                    chip,
+                    ConnectionMode.NATIVE,
+                    "common_chip_fallback",
+                )
                 logger.info(f"通过常见芯片回退成功连接到芯片: {chip}")
                 return
             except Exception:
                 continue
 
         patch_hint = f"设备补丁支持的设备: {patch_devices[:5]}...\n" if patch_devices else ""
+        generic_hint = (
+            f"默认通用核心: {self._get_generic_core_name()}\n"
+            if config.generic_core_fallback
+            else "通用核心回退已禁用，可通过 JLINK_GENERIC_CORE_FALLBACK 启用\n"
+        )
         raise ConnectionError(
             "无法自动检测芯片，请手动指定芯片名称。\n"
             f"{patch_hint}"
+            f"{generic_hint}"
             f"常见设备: {COMMON_AUTO_DETECT_CHIPS}",
-            None
+            None,
         )
 
     def disconnect(self) -> None:
@@ -290,6 +429,10 @@ class JLinkManager:
         self._connected = False
         self._device_serial = None
         self._target_connected = False
+        self._connection_mode = None
+        self._connection_strategy = None
+        self._requested_chip_name = None
+        self._connected_chip_name = None
 
     def get_connection_status(self) -> ConnectionStatus:
         """获取连接状态.
@@ -304,20 +447,22 @@ class JLinkManager:
                 target_interface=None,
                 target_voltage=None,
                 target_connected=False,
-                firmware_version=None
+                firmware_version=None,
+                connection_mode=None,
+                connection_strategy=None,
+                requested_chip_name=None,
+                connected_chip_name=None,
             )
 
         try:
-            status = self._jlink.hardware_status  # 属性不是方法，去掉括号
-            voltage = status.VTarget / 1000.0  # 转换 mV → V
+            status = self._jlink.hardware_status
+            voltage = status.VTarget / 1000.0
             fw_version = self._jlink.version
         except Exception as e:
-            # 记录异常信息用于诊断
             logger.warning(f"获取硬件状态失败: {e}")
             voltage = None
             fw_version = None
 
-        # 确保 device_serial 有有效值
         device_serial = self._device_serial
         if device_serial is None:
             try:
@@ -332,7 +477,11 @@ class JLinkManager:
             target_interface=self._target_interface,
             target_voltage=voltage,
             target_connected=self.is_target_connected,
-            firmware_version=fw_version
+            firmware_version=fw_version,
+            connection_mode=self._connection_mode,
+            connection_strategy=self._connection_strategy,
+            requested_chip_name=self._requested_chip_name,
+            connected_chip_name=self._connected_chip_name,
         )
 
     def get_target_info(self) -> TargetDeviceInfo:
@@ -350,14 +499,12 @@ class JLinkManager:
         try:
             jlink = self._jlink
 
-            # 获取设备信息
             device_name = None
             try:
                 device_name = jlink.device_name()
             except Exception:
                 pass
 
-            # 获取内核信息
             core_type = None
             core_id = None
             try:
@@ -366,26 +513,22 @@ class JLinkManager:
             except Exception:
                 pass
 
-            # 获取设备 ID
             device_id = None
             try:
                 device_id = jlink.device_id()
             except Exception:
                 pass
 
-            # 获取 Flash 和 RAM 信息
             flash_size = None
             ram_size = None
             ram_addresses = []
 
             try:
-                # 尝试从设备信息获取内存布局
                 if hasattr(jlink, 'device'):
                     device = jlink.device
                     if device:
                         flash_size = device.FlashSize
                         ram_size = device.RAMSize
-                        # RAM 地址范围可能需要从设备数据库获取
             except Exception:
                 pass
 
@@ -396,7 +539,7 @@ class JLinkManager:
                 device_id=device_id,
                 flash_size=flash_size,
                 ram_size=ram_size,
-                ram_addresses=ram_addresses
+                ram_addresses=ram_addresses,
             )
 
         except JLinkMCPError:
@@ -405,7 +548,7 @@ class JLinkManager:
             raise OperationError(
                 JLinkErrorCode.READ_FAILED,
                 f"获取目标信息失败: {e}",
-                e
+                e,
             )
 
     def get_jlink(self) -> pylink.JLink:
@@ -429,7 +572,7 @@ class JLinkManager:
         if not self.is_connected:
             raise JLinkMCPError(
                 JLinkErrorCode.NOT_INITIALIZED,
-                "JLink 未连接"
+                "JLink 未连接",
             )
 
     def _ensure_target_connected(self) -> None:
@@ -441,7 +584,7 @@ class JLinkManager:
         if not self.is_target_connected:
             raise JLinkMCPError(
                 JLinkErrorCode.TARGET_NOT_CONNECTED,
-                "目标芯片未连接"
+                "目标芯片未连接",
             )
 
     @contextmanager
@@ -460,5 +603,4 @@ class JLinkManager:
                 self.disconnect()
 
 
-# 全局单例实例
 jlink_manager = JLinkManager()

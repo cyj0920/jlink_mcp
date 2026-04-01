@@ -19,6 +19,9 @@ class ServerConfig(BaseModel):
     max_memory_read_size: int = Field(default=65536, description="最大内存读取大小（字节）")
     svd_dir: Optional[str] = Field(default=None, description="外部 SVD 目录")
     patch_dir: Optional[str] = Field(default=None, description="外部设备补丁目录")
+    generic_core_fallback: bool = Field(default=True, description="是否允许通用核心回退")
+    default_core: str = Field(default="Cortex-M4", description="默认回退核心")
+    resource_mode: str = Field(default="mixed", description="资源模式（generic/native/mixed/private）")
     system_prompt: Optional[str] = Field(default=None, description="系统提示词")
     custom_prompts: Dict[str, str] = Field(default_factory=dict, description="自定义提示词字典")
 
@@ -111,6 +114,30 @@ class ConfigManager:
         if patch_dir:
             self._config.patch_dir = patch_dir
             applied["JLINK_PATCH_DIR"] = patch_dir
+
+        generic_core_fallback = os.environ.get("JLINK_GENERIC_CORE_FALLBACK")
+        if generic_core_fallback is not None:
+            enabled = generic_core_fallback.strip().lower() in {"1", "true", "yes", "on"}
+            self._config.generic_core_fallback = enabled
+            applied["JLINK_GENERIC_CORE_FALLBACK"] = enabled
+
+        default_core = os.environ.get("JLINK_DEFAULT_CORE")
+        if default_core:
+            normalized_core = default_core.strip()
+            self._config.default_core = normalized_core
+            applied["JLINK_DEFAULT_CORE"] = normalized_core
+
+        resource_mode = os.environ.get("JLINK_RESOURCE_MODE")
+        if resource_mode:
+            normalized_mode = resource_mode.strip().lower()
+            if normalized_mode in {"generic", "native", "mixed", "private"}:
+                self._config.resource_mode = normalized_mode
+                applied["JLINK_RESOURCE_MODE"] = normalized_mode
+            else:
+                logger.warning(
+                    "环境变量 JLINK_RESOURCE_MODE=%s 无效，仅支持 generic/native/mixed/private，已忽略",
+                    resource_mode,
+                )
 
         semantic_enabled = os.environ.get("JLINK_SEMANTIC_ENABLED")
         if semantic_enabled is not None:
