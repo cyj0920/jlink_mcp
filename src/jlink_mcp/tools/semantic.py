@@ -105,10 +105,19 @@ def semantic_search_tools(
 
         # Perform semantic search
         logger.info(f"Performing semantic search: query='{query[:50]}...', top_k={top_k}, threshold={threshold}")
-        results = semantic_registry.search(query, top_k=top_k, threshold=threshold)
+        raw_results = semantic_registry.search(query, top_k=top_k, threshold=threshold)
+        results = [
+            result for result in raw_results
+            if result.relevance_score >= threshold
+        ]
+        results = sorted(results, key=lambda item: item.relevance_score, reverse=True)[:top_k]
 
         # Build response
         total_tools = semantic_registry.get_tool_count()
+
+        token_savings = "0.0%"
+        if total_tools > 0:
+            token_savings = f"{round((1 - len(results) / total_tools) * 100, 1)}%"
 
         return {
             "success": True,
@@ -127,7 +136,7 @@ def semantic_search_tools(
                 "threshold": threshold,
                 "total_tools": total_tools,
                 "candidates": len(results),
-                "token_savings": f"{round((1 - len(results) / total_tools) * 100, 1)}%"
+                "token_savings": token_savings
             },
             "message": f"Found {len(results)} relevant tools out of {total_tools} total tools"
         }

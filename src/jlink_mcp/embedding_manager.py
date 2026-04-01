@@ -11,7 +11,9 @@ Features / 功能：
 """
 
 import hashlib
+import os
 import pickle
+import tempfile
 import time
 from typing import Dict, List, Optional, Any
 from pathlib import Path
@@ -67,12 +69,39 @@ class EmbeddingManager:
 
     def _get_cache_path(self) -> Path:
         """Get cache file path / 获取缓存文件路径."""
-        cache_dir = Path(__file__).parent / ".embedding_cache"
-        cache_dir.mkdir(exist_ok=True)
+        base_dir = (
+            os.environ.get("JLINK_MCP_CACHE_DIR")
+            or os.environ.get("LOCALAPPDATA")
+            or os.environ.get("XDG_CACHE_HOME")
+        )
+
+        if not base_dir:
+            if os.name == "nt":
+                base_dir = str(Path.home() / "AppData" / "Local")
+            else:
+                base_dir = str(Path.home() / ".cache")
+
+        cache_dir = Path(base_dir) / "jlink_mcp"
+
+        try:
+            cache_dir.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            cache_dir = Path(tempfile.gettempdir()) / "jlink_mcp"
+            cache_dir.mkdir(parents=True, exist_ok=True)
+
         return cache_dir / f"embeddings_v{self.CACHE_VERSION}.pkl"
+
+    def _is_cache_enabled(self) -> bool:
+        """Check whether cache is enabled / 检查是否启用缓存."""
+        config = config_manager.get_config()
+        return bool(getattr(config, "semantic_cache_enabled", True))
 
     def _load_cache(self) -> None:
         """Load embeddings from Pickle cache / 从 Pickle 缓存加载嵌入."""
+        if not self._is_cache_enabled():
+            logger.debug("Embedding cache disabled, skipping cache load")
+            return
+
         if not self._cache_file.exists():
             logger.debug("Embedding cache file not found, starting with empty cache")
             return
@@ -94,6 +123,9 @@ class EmbeddingManager:
 
     def _save_cache(self) -> None:
         """Save embeddings to Pickle cache / 保存嵌入到 Pickle 缓存."""
+        if not self._is_cache_enabled():
+            return
+
         try:
             data = {
                 'version': self.CACHE_VERSION,
@@ -200,7 +232,7 @@ class EmbeddingManager:
         cache_key = hashlib.md5(text.encode()).hexdigest()
 
         # Check cache
-        if cache_key in self._embedding_cache:
+        if self._is_cache_enabled() and cache_key in self._embedding_cache:
             logger.debug(f"Embedding cache hit for text hash: {cache_key[:8]}...")
             return self._embedding_cache[cache_key]
 
@@ -221,8 +253,9 @@ class EmbeddingManager:
             embedding = response.data[0].embedding
 
             # Cache the result
-            self._embedding_cache[cache_key] = embedding
-            self._save_cache()
+            if self._is_cache_enabled():
+                self._embedding_cache[cache_key] = embedding
+                self._save_cache()
 
             logger.debug(f"Generated embedding: {len(embedding)} dimensions")
             return embedding
@@ -249,7 +282,7 @@ class EmbeddingManager:
             cache_key = hashlib.md5(text.encode()).hexdigest()
             cache_keys.append(cache_key)
 
-            if cache_key not in self._embedding_cache:
+            if not self._is_cache_enabled() or cache_key not in self._embedding_cache:
                 uncached_texts.append(text)
                 uncached_indices.append(i)
 
@@ -272,9 +305,14 @@ class EmbeddingManager:
                 # Cache new embeddings
                 for i, emb in enumerate(response.data):
                     cache_key = hashlib.md5(uncached_texts[i].encode()).hexdigest()
-                    self._embedding_cache[cache_key] = emb.embedding
+                    if self._is_cache_enabled():
+                        self._embedding_cache[cache_key] = emb.embedding
 
-                self._save_cache()
+                if self._is_cache_enabled():
+                    self._save_cache()
+
+                if not self._is_cache_enabled():
+                    return [emb.embedding for emb in response.data]
 
             except Exception as e:
                 logger.error(f"Failed to generate batch embeddings: {e}")
@@ -291,7 +329,7 @@ class EmbeddingManager:
         self._embedding_cache.clear()
 
         if self._cache_file.exists():
-            self._cache_file.unlink()
+            self._cache_file.unlink(missing_ok=True)
 
         logger.info("Embedding cache cleared")
 

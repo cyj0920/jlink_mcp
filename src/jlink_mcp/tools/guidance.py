@@ -88,6 +88,28 @@ TOOL_CATEGORIES = {
             "stop_gdb_server",
             "get_gdb_server_status"
         ]
+    },
+    "使用指南": {
+        "description": "使用指南、最佳实践和场景建议",
+        "tools": [
+            "get_usage_guidance",
+            "get_best_practices",
+            "list_scenarios",
+            "get_forbidden_operations"
+        ]
+    },
+    "语义检索": {
+        "description": "基于语义相似度的工具搜索和统计",
+        "tools": [
+            "semantic_search_tools",
+            "get_semantic_stats"
+        ]
+    },
+    "系统提示词": {
+        "description": "获取系统提示词和自定义提示词",
+        "tools": [
+            "get_system_prompt"
+        ]
     }
 }
 

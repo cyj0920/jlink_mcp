@@ -19,8 +19,8 @@ from jlink_mcp.models.semantic import SemanticSearchResult
 class TestSemanticSearchIntegration:
     """Integration tests for semantic search / 语义检索集成测试."""
 
-    @patch('jlink_mcp.semantic_registry.semantic_registry')
-    @patch('jlink_mcp.config_manager.config_manager')
+    @patch('jlink_mcp.tools.semantic.semantic_registry')
+    @patch('jlink_mcp.tools.semantic.config_manager')
     def test_full_workflow(self, mock_config, mock_registry):
         """Test complete semantic search workflow / 测试完整的语义检索工作流."""
         # Setup configuration
@@ -73,8 +73,8 @@ class TestSemanticSearchIntegration:
         assert "read_register_with_fields" in tool_names
         assert "read_memory" in tool_names
 
-    @patch('jlink_mcp.semantic_registry.semantic_registry')
-    @patch('jlink_mcp.config_manager.config_manager')
+    @patch('jlink_mcp.tools.semantic.semantic_registry')
+    @patch('jlink_mcp.tools.semantic.config_manager')
     def test_multilingual_search(self, mock_config, mock_registry):
         """Test multilingual search (Chinese and English) / 测试多语言搜索（中文和英文）."""
         mock_config.get_config.return_value = Mock(semantic_enabled=True)
@@ -106,8 +106,8 @@ class TestSemanticSearchIntegration:
         assert "read_memory" in zh_tools
         assert "read_memory" in en_tools
 
-    @patch('jlink_mcp.semantic_registry.semantic_registry')
-    @patch('jlink_mcp.config_manager.config_manager')
+    @patch('jlink_mcp.tools.semantic.semantic_registry')
+    @patch('jlink_mcp.tools.semantic.config_manager')
     def test_threshold_filtering(self, mock_config, mock_registry):
         """Test threshold filtering / 测试阈值过滤."""
         mock_config.get_config.return_value = Mock(semantic_enabled=True)
@@ -144,8 +144,8 @@ class TestSemanticSearchIntegration:
         assert len(high_result["results"]) == 1
         assert high_result["results"][0]["relevance_score"] >= 0.7
 
-    @patch('jlink_mcp.semantic_registry.semantic_registry')
-    @patch('jlink_mcp.config_manager.config_manager')
+    @patch('jlink_mcp.tools.semantic.semantic_registry')
+    @patch('jlink_mcp.tools.semantic.config_manager')
     def test_top_k_limiting(self, mock_config, mock_registry):
         """Test top_k limiting / 测试 Top-K 限制."""
         mock_config.get_config.return_value = Mock(semantic_enabled=True)
@@ -171,8 +171,8 @@ class TestSemanticSearchIntegration:
         result = semantic_search_tools("test query", top_k=5, threshold=0.0)
         assert len(result["results"]) == 5
 
-    @patch('jlink_mcp.semantic_registry.semantic_registry')
-    @patch('jlink_mcp.config_manager.config_manager')
+    @patch('jlink_mcp.tools.semantic.semantic_registry')
+    @patch('jlink_mcp.tools.semantic.config_manager')
     def test_no_results_above_threshold(self, mock_config, mock_registry):
         """Test when no results are above threshold / 测试没有结果超过阈值的情况."""
         mock_config.get_config.return_value = Mock(semantic_enabled=True)
@@ -187,8 +187,8 @@ class TestSemanticSearchIntegration:
         assert len(result["results"]) == 0
         assert result["metadata"]["candidates"] == 0
 
-    @patch('jlink_mcp.semantic_registry.semantic_registry')
-    @patch('jlink_mcp.config_manager.config_manager')
+    @patch('jlink_mcp.tools.semantic.semantic_registry')
+    @patch('jlink_mcp.tools.semantic.config_manager')
     def test_realistic_query_scenarios(self, mock_config, mock_registry):
         """Test realistic query scenarios / 测试真实的查询场景."""
         mock_config.get_config.return_value = Mock(semantic_enabled=True)
@@ -242,7 +242,7 @@ class TestSemanticSearchIntegration:
 class TestSemanticStatsIntegration:
     """Integration tests for semantic statistics / 语义统计集成测试."""
 
-    @patch('jlink_mcp.semantic_registry.semantic_registry')
+    @patch('jlink_mcp.tools.semantic.semantic_registry')
     def test_get_semantic_stats_integration(self, mock_registry):
         """Test get_semantic_stats() integration / 测试 get_semantic_stats() 集成."""
         mock_registry.get_stats.return_value = {
@@ -268,7 +268,7 @@ class TestSemanticStatsIntegration:
 class TestConfigurationIntegration:
     """Integration tests for configuration / 配置集成测试."""
 
-    @patch('jlink_mcp.config_manager.config_manager')
+    @patch('jlink_mcp.tools.semantic.config_manager')
     def test_configuration_disabled(self, mock_config):
         """Test behavior when semantic search is disabled / 测试语义检索禁用时的行为."""
         mock_config.get_config.return_value = Mock(semantic_enabled=False)
@@ -278,12 +278,12 @@ class TestConfigurationIntegration:
         assert result["success"] is False
         assert "disabled" in result["error"].lower()
 
-    @patch('jlink_mcp.config_manager.config_manager')
+    @patch('jlink_mcp.tools.semantic.config_manager')
     def test_configuration_enabled(self, mock_config):
         """Test behavior when semantic search is enabled / 测试语义检索启用时的行为."""
         mock_config.get_config.return_value = Mock(semantic_enabled=True)
 
-        with patch('jlink_mcp.semantic_registry.semantic_registry') as mock_registry:
+        with patch('jlink_mcp.tools.semantic.semantic_registry') as mock_registry:
             mock_registry.search.return_value = []
             mock_registry.get_tool_count.return_value = 41
 
@@ -297,8 +297,8 @@ class TestConfigurationIntegration:
 class TestErrorHandlingIntegration:
     """Integration tests for error handling / 错误处理集成测试."""
 
-    @patch('jlink_mcp.semantic_registry.semantic_registry')
-    @patch('jlink_mcp.config_manager.config_manager')
+    @patch('jlink_mcp.tools.semantic.semantic_registry')
+    @patch('jlink_mcp.tools.semantic.config_manager')
     def test_registry_initialization_failure(self, mock_config, mock_registry):
         """Test handling of registry initialization failure / 测试注册表初始化失败的处理."""
         mock_config.get_config.return_value = Mock(semantic_enabled=True)
@@ -309,8 +309,8 @@ class TestErrorHandlingIntegration:
         assert result["success"] is False
         assert "error" in result
 
-    @patch('jlink_mcp.semantic_registry.semantic_registry')
-    @patch('jlink_mcp.config_manager.config_manager')
+    @patch('jlink_mcp.tools.semantic.semantic_registry')
+    @patch('jlink_mcp.tools.semantic.config_manager')
     def test_api_key_missing(self, mock_config, mock_registry):
         """Test handling of missing API key / 测试缺失 API Key 的处理."""
         mock_config.get_config.return_value = Mock(semantic_enabled=True)
@@ -326,8 +326,8 @@ class TestErrorHandlingIntegration:
 class TestPerformanceIntegration:
     """Integration tests for performance / 性能集成测试."""
 
-    @patch('jlink_mcp.semantic_registry.semantic_registry')
-    @patch('jlink_mcp.config_manager.config_manager')
+    @patch('jlink_mcp.tools.semantic.semantic_registry')
+    @patch('jlink_mcp.tools.semantic.config_manager')
     def test_concurrent_searches(self, mock_config, mock_registry):
         """Test concurrent search requests / 测试并发搜索请求."""
         mock_config.get_config.return_value = Mock(semantic_enabled=True)
@@ -354,8 +354,8 @@ class TestPerformanceIntegration:
         assert all(r["success"] for r in results)
         assert mock_registry.search.call_count == 5
 
-    @patch('jlink_mcp.semantic_registry.semantic_registry')
-    @patch('jlink_mcp.config_manager.config_manager')
+    @patch('jlink_mcp.tools.semantic.semantic_registry')
+    @patch('jlink_mcp.tools.semantic.config_manager')
     def test_cache_effectiveness(self, mock_config, mock_registry):
         """Test cache effectiveness / 测试缓存有效性."""
         mock_config.get_config.return_value = Mock(semantic_enabled=True)

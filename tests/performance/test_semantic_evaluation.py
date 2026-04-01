@@ -20,8 +20,8 @@ from jlink_mcp.models.semantic import SemanticSearchResult
 class TestPrecisionAtK:
     """Evaluation tests for Precision@K / Precision@K 评估测试."""
 
-    @patch('jlink_mcp.semantic_registry.semantic_registry')
-    @patch('jlink_mcp.config_manager.config_manager')
+    @patch('jlink_mcp.tools.semantic.semantic_registry')
+    @patch('jlink_mcp.tools.semantic.config_manager')
     def test_precision_at_k(self, mock_config, mock_registry):
         """Test Precision@K metric / 测试 Precision@K 指标."""
         mock_config.get_config.return_value = Mock(semantic_enabled=True)
@@ -74,8 +74,8 @@ class TestPrecisionAtK:
 
         assert avg_precision >= 0.70, f"Precision@3 {avg_precision:.2%} is below target of 70%"
 
-    @patch('jlink_mcp.semantic_registry.semantic_registry')
-    @patch('jlink_mcp.config_manager.config_manager')
+    @patch('jlink_mcp.tools.semantic.semantic_registry')
+    @patch('jlink_mcp.tools.semantic.config_manager')
     def test_precision_at_different_k(self, mock_config, mock_registry):
         """Test Precision@K for different K values / 测试不同 K 值的 Precision@K."""
         mock_config.get_config.return_value = Mock(semantic_enabled=True)
@@ -117,8 +117,8 @@ class TestPrecisionAtK:
 class TestRecallAtK:
     """Evaluation tests for Recall@K / Recall@K 评估测试."""
 
-    @patch('jlink_mcp.semantic_registry.semantic_registry')
-    @patch('jlink_mcp.config_manager.config_manager')
+    @patch('jlink_mcp.tools.semantic.semantic_registry')
+    @patch('jlink_mcp.tools.semantic.config_manager')
     def test_recall_at_k(self, mock_config, mock_registry):
         """Test Recall@K metric / 测试 Recall@K 指标."""
         mock_config.get_config.return_value = Mock(semantic_enabled=True)
@@ -163,8 +163,8 @@ class TestRecallAtK:
 
         assert avg_recall >= 0.80, f"Recall@10 {avg_recall:.2%} is below target of 80%"
 
-    @patch('jlink_mcp.semantic_registry.semantic_registry')
-    @patch('jlink_mcp.config_manager.config_manager')
+    @patch('jlink_mcp.tools.semantic.semantic_registry')
+    @patch('jlink_mcp.tools.semantic.config_manager')
     def test_recall_by_category(self, mock_config, mock_registry):
         """Test Recall@K by tool category / 测试按工具分类的 Recall@K."""
         mock_config.get_config.return_value = Mock(semantic_enabled=True)
@@ -213,8 +213,8 @@ class TestRecallAtK:
 class TestMeanReciprocalRank:
     """Evaluation tests for Mean Reciprocal Rank (MRR) / 平均倒数排名（MRR）评估测试."""
 
-    @patch('jlink_mcp.semantic_registry.semantic_registry')
-    @patch('jlink_mcp.config_manager.config_manager')
+    @patch('jlink_mcp.tools.semantic.semantic_registry')
+    @patch('jlink_mcp.tools.semantic.config_manager')
     def test_mrr(self, mock_config, mock_registry):
         """Test Mean Reciprocal Rank metric / 测试平均倒数排名指标."""
         mock_config.get_config.return_value = Mock(semantic_enabled=True)
@@ -272,8 +272,8 @@ class TestMeanReciprocalRank:
 
         assert mrr >= 0.5, f"MRR {mrr:.3f} is below target of 0.5"
 
-    @patch('jlink_mcp.semantic_registry.semantic_registry')
-    @patch('jlink_mcp.config_manager.config_manager')
+    @patch('jlink_mcp.tools.semantic.semantic_registry')
+    @patch('jlink_mcp.tools.semantic.config_manager')
     def test_mrr_worst_case(self, mock_config, mock_registry):
         """Test MRR with expected tool at different ranks / 测试预期工具在不同排名时的 MRR."""
         mock_config.get_config.return_value = Mock(semantic_enabled=True)
@@ -318,8 +318,8 @@ class TestMeanReciprocalRank:
 class TestHitRate:
     """Evaluation tests for Hit Rate / 命中率评估测试."""
 
-    @patch('jlink_mcp.semantic_registry.semantic_registry')
-    @patch('jlink_mcp.config_manager.config_manager')
+    @patch('jlink_mcp.tools.semantic.semantic_registry')
+    @patch('jlink_mcp.tools.semantic.config_manager')
     def test_hit_rate_at_k(self, mock_config, mock_registry):
         """Test Hit Rate@K metric / 测试命中率@K 指标."""
         mock_config.get_config.return_value = Mock(semantic_enabled=True)
@@ -373,8 +373,8 @@ class TestHitRate:
         # Hit Rate should be high for K >= 3
         assert hit_rates[3] >= 0.95, f"Hit Rate@3 {hit_rates[3]:.2%} is below target of 95%"
 
-    @patch('jlink_mcp.semantic_registry.semantic_registry')
-    @patch('jlink_mcp.config_manager.config_manager')
+    @patch('jlink_mcp.tools.semantic.semantic_registry')
+    @patch('jlink_mcp.tools.semantic.config_manager')
     def test_hit_rate_by_threshold(self, mock_config, mock_registry):
         """Test Hit Rate by similarity threshold / 测试按相似度阈值的命中率."""
         mock_config.get_config.return_value = Mock(semantic_enabled=True)
@@ -431,8 +431,8 @@ class TestHitRate:
 class TestF1Score:
     """Evaluation tests for F1 Score / F1 分数评估测试."""
 
-    @patch('jlink_mcp.semantic_registry.semantic_registry')
-    @patch('jlink_mcp.config_manager.config_manager')
+    @patch('jlink_mcp.tools.semantic.semantic_registry')
+    @patch('jlink_mcp.tools.semantic.config_manager')
     def test_f1_score_at_k(self, mock_config, mock_registry):
         """Test F1 Score@K metric / 测试 F1 分数@K 指标."""
         mock_config.get_config.return_value = Mock(semantic_enabled=True)
@@ -497,8 +497,8 @@ class TestF1Score:
 class TestOverallQuality:
     """Overall quality evaluation / 整体质量评估."""
 
-    @patch('jlink_mcp.semantic_registry.semantic_registry')
-    @patch('jlink_mcp.config_manager.config_manager')
+    @patch('jlink_mcp.tools.semantic.semantic_registry')
+    @patch('jlink_mcp.tools.semantic.config_manager')
     def test_comprehensive_evaluation(self, mock_config, mock_registry):
         """Comprehensive evaluation with all metrics / 使用所有指标的综合评估."""
         mock_config.get_config.return_value = Mock(semantic_enabled=True)

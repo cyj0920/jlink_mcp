@@ -3,54 +3,33 @@
 This module manages tool metadata and provides semantic search functionality.
 此模块管理工具元数据并提供语义搜索功能。
 
-Based on the paper "Semantic Tool Discovery for Large Language Models: A Vector-Based Approach to MCP Tool Selection"
-基于论文《Semantic Tool Discovery for Large Language Models: A Vector-Based Approach to MCP Tool Selection》
-
 Features / 功能：
-- Scan all MCP tools and extract metadata / 扫描所有 MCP 工具并提取元数据
-- Build tool documents following paper template / 遵循论文模板构建工具文档
+- Discover real MCP tools from server.py / 从 server.py 发现真实 MCP 工具
+- Build tool documents with docstrings and parameters / 用文档字符串和参数构建工具文档
 - Generate embeddings for all tools / 为所有工具生成嵌入
 - Perform semantic search using cosine similarity / 使用余弦相似度执行语义搜索
 - Singleton pattern for global access / 单例模式以实现全局访问
 """
 
-import inspect
-import numpy as np
-from typing import Dict, List, Optional, Set, Any
+from __future__ import annotations
 
-from .models.semantic import (
-    ToolEmbedding,
-    SemanticSearchResult,
-    SemanticRegistryConfig
-)
+import ast
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+import numpy as np
+
 from .embedding_manager import embedding_manager
-from .utils import logger
+from .models.semantic import SemanticRegistryConfig, SemanticSearchResult, ToolEmbedding
 from .tools.guidance import TOOL_CATEGORIES, USAGE_SCENARIOS
+from .utils import logger
 
 
 class SemanticRegistry:
-    """Semantic Tool Registry (Singleton Pattern) / 语义工具注册表（单例模式）.
-
-    Responsibilities / 职责：
-    1. Scan all MCP tools and extract metadata / 扫描所有 MCP 工具并提取元数据
-    2. Build tool documents following paper template / 遵循论文模板构建工具文档
-    3. Generate embeddings for all tools / 为所有工具生成嵌入
-    4. Perform semantic search (cosine similarity) / 执行语义搜索（余弦相似度）
-
-    Design Pattern / 设计模式：
-    - Singleton: Ensure only one instance exists / 单例：确保只存在一个实例
-    - Lazy Initialization: Initialize on first search / 延迟初始化：首次搜索时初始化
-    - Cache First: Use pre-computed embeddings / 缓存优先：使用预计算的嵌入
-
-    Paper Template / 论文模板：
-        Tool: {tool_name}
-        Purpose: {description}
-        Capabilities: {expanded_description}
-        Parameters: {parameter_descriptions}
-    """
+    """Semantic Tool Registry (Singleton Pattern) / 语义工具注册表（单例模式）."""
 
     _instance: Optional["SemanticRegistry"] = None
-    _initialized: bool = False
+    _singleton_ready: bool = False
 
     def __new__(cls) -> "SemanticRegistry":
         """Singleton pattern implementation / 单例模式实现."""
@@ -59,8 +38,8 @@ class SemanticRegistry:
         return cls._instance
 
     def __init__(self):
-        """Initialize semantic registry / 初始化语义注册表."""
-        if SemanticRegistry._initialized:
+        """Initialize semantic registry state / 初始化语义注册表状态."""
+        if SemanticRegistry._singleton_ready:
             return
 
         self._tools: Dict[str, ToolEmbedding] = {}
@@ -68,70 +47,140 @@ class SemanticRegistry:
         self._tool_names_list: List[str] = []
         self._config: SemanticRegistryConfig = SemanticRegistryConfig()
         self._embedding_manager = embedding_manager
+        self._initialized = False
 
-        SemanticRegistry._initialized = True
-        logger.info("SemanticRegistry initialized")
+        SemanticRegistry._singleton_ready = True
+        logger.info("SemanticRegistry instance created")
 
     def initialize(self, force: bool = False) -> None:
-        """Initialize registry: scan tools and generate embeddings / 初始化注册表：扫描工具并生成嵌入.
-
-        Args / 参数：
-            force: Force re-initialization even if already initialized / 强制重新初始化，即使已经初始化
-        """
+        """Initialize registry: discover tools and generate embeddings / 初始化注册表：发现工具并生成嵌入."""
         if self._initialized and not force:
             logger.info("Registry already initialized, skipping")
             return
 
         logger.info("Initializing semantic registry...")
+        self._tools = {}
+        self._tool_embeddings_matrix = None
+        self._tool_names_list = []
 
-        # Scan all tools
         self._scan_tools()
-
-        # Generate embeddings
         self._generate_embeddings()
-
-        # Build embeddings matrix for efficient search
         self._build_embeddings_matrix()
 
         self._initialized = True
         logger.info(f"Semantic registry initialized with {len(self._tools)} tools")
 
     def _scan_tools(self) -> None:
-        """Scan all MCP tools and extract metadata / 扫描所有 MCP 工具并提取元数据."""
-        # Collect all tool names from categories
-        all_tool_names: Set[str] = set()
-        category_map: Dict[str, str] = {}  # tool_name -> category
+        """Scan MCP tool definitions from server.py / 从 server.py 扫描 MCP 工具定义."""
+        category_map = self._build_category_map()
+        discovered_tools = self._discover_mcp_tools()
 
+        logger.info(
+            "Discovered %s MCP tools in server.py across %s configured categories",
+            len(discovered_tools),
+            len(TOOL_CATEGORIES),
+        )
+
+        for tool_info in discovered_tools:
+            tool_name = tool_info["tool_name"]
+            category = category_map.get(tool_name, self._infer_category(tool_name))
+            self._tools[tool_name] = self._build_tool_metadata(tool_info, category)
+
+    def _build_category_map(self) -> Dict[str, str]:
+        """Build tool-to-category mapping / 构建工具到分类的映射."""
+        category_map: Dict[str, str] = {}
         for category_name, category_info in TOOL_CATEGORIES.items():
             for tool_name in category_info["tools"]:
-                all_tool_names.add(tool_name)
                 category_map[tool_name] = category_name
+        return category_map
 
-        logger.info(f"Found {len(all_tool_names)} tools in {len(TOOL_CATEGORIES)} categories")
+    def _discover_mcp_tools(self) -> List[Dict[str, Any]]:
+        """Discover actual MCP tools by parsing server.py / 通过解析 server.py 发现真实 MCP 工具."""
+        server_file = Path(__file__).with_name("server.py")
+        source = server_file.read_text(encoding="utf-8")
+        module = ast.parse(source, filename=str(server_file))
 
-        # Build tool metadata for each tool
-        for tool_name in all_tool_names:
-            tool_emb = self._build_tool_metadata(tool_name, category_map[tool_name])
-            self._tools[tool_name] = tool_emb
+        tools: List[Dict[str, Any]] = []
+        for node in module.body:
+            if isinstance(node, ast.AsyncFunctionDef) and self._is_mcp_tool(node):
+                docstring = ast.get_docstring(node) or ""
+                tools.append(
+                    {
+                        "tool_name": node.name,
+                        "doc_string": self._extract_summary(docstring, node.name),
+                        "full_doc_string": self._normalize_docstring(docstring),
+                        "parameter_descriptions": self._build_parameter_descriptions(node),
+                    }
+                )
 
-    def _build_tool_metadata(self, tool_name: str, category: str) -> ToolEmbedding:
-        """Build tool metadata / 构建工具元数据.
+        return tools
 
-        Args / 参数：
-            tool_name: Tool name / 工具名称
-            category: Tool category / 工具分类
+    def _is_mcp_tool(self, node: ast.AsyncFunctionDef) -> bool:
+        """Check whether function is decorated with @mcp.tool() / 判断函数是否被 @mcp.tool() 装饰."""
+        for decorator in node.decorator_list:
+            if isinstance(decorator, ast.Call):
+                func = decorator.func
+                if isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name):
+                    if func.value.id == "mcp" and func.attr == "tool":
+                        return True
+        return False
 
-        Returns / 返回：
-            ToolEmbedding: Tool metadata with empty embedding / 带有空嵌入的工具元数据
-        """
-        # Extract docstring (will be retrieved from actual function in production)
-        doc_string = self._get_tool_docstring(tool_name)
+    def _extract_summary(self, docstring: str, tool_name: str) -> str:
+        """Extract one-line summary from docstring / 从文档字符串中提取单行摘要."""
+        normalized = self._normalize_docstring(docstring)
+        if not normalized:
+            return tool_name.replace("_", " ")
 
-        # Build expanded description from usage scenarios
-        expanded_description = self._build_expanded_description(tool_name)
+        first_line = normalized.splitlines()[0].strip()
+        return first_line or tool_name.replace("_", " ")
 
-        # Build parameter descriptions
-        parameter_descriptions = self._build_parameter_descriptions(tool_name)
+    def _normalize_docstring(self, docstring: str) -> str:
+        """Normalize docstring for embedding text / 规范化文档字符串用于嵌入文本."""
+        lines = [line.strip() for line in docstring.splitlines()]
+        return "\n".join(line for line in lines if line)
+
+    def _build_parameter_descriptions(self, node: ast.AsyncFunctionDef) -> str:
+        """Build parameter descriptions from function signature / 从函数签名构建参数描述."""
+        positional_args = list(node.args.args)
+        defaults = list(node.args.defaults)
+        default_offset = len(positional_args) - len(defaults)
+        default_map = {
+            positional_args[index + default_offset].arg: defaults[index]
+            for index in range(len(defaults))
+        }
+
+        parts: List[str] = []
+        for arg in positional_args:
+            if arg.arg == "self":
+                continue
+            parts.append(self._format_arg(arg.arg, arg.annotation, default_map.get(arg.arg)))
+
+        if node.args.vararg is not None:
+            parts.append(self._format_arg(f"*{node.args.vararg.arg}", node.args.vararg.annotation, None))
+
+        kw_defaults = list(node.args.kw_defaults)
+        for arg, default in zip(node.args.kwonlyargs, kw_defaults):
+            parts.append(self._format_arg(arg.arg, arg.annotation, default))
+
+        if node.args.kwarg is not None:
+            parts.append(self._format_arg(f"**{node.args.kwarg.arg}", node.args.kwarg.annotation, None))
+
+        return "; ".join(parts) if parts else "No parameters"
+
+    def _format_arg(self, name: str, annotation: Optional[ast.expr], default: Optional[ast.expr]) -> str:
+        """Format one parameter description / 格式化单个参数描述."""
+        annotation_text = ast.unparse(annotation) if annotation is not None else "Any"
+        if default is None:
+            return f"{name}: {annotation_text}"
+        return f"{name}: {annotation_text} = {ast.unparse(default)}"
+
+    def _build_tool_metadata(self, tool_info: Dict[str, Any], category: str) -> ToolEmbedding:
+        """Build tool metadata / 构建工具元数据."""
+        tool_name = str(tool_info["tool_name"])
+        doc_string = str(tool_info["doc_string"])
+        full_doc_string = str(tool_info.get("full_doc_string", doc_string))
+        parameter_descriptions = str(tool_info["parameter_descriptions"])
+        expanded_description = self._build_expanded_description(tool_name, doc_string, full_doc_string)
 
         return ToolEmbedding(
             tool_name=tool_name,
@@ -139,218 +188,155 @@ class SemanticRegistry:
             doc_string=doc_string,
             expanded_description=expanded_description,
             parameter_descriptions=parameter_descriptions,
-            embedding_vector=[]  # Will be filled later
+            embedding_vector=[],
         )
 
-    def _get_tool_docstring(self, tool_name: str) -> str:
-        """Get tool docstring / 获取工具文档字符串.
-
-        Args / 参数：
-            tool_name: Tool name / 工具名称
-
-        Returns / 返回：
-            str: Tool docstring / 工具文档字符串
-        """
-        # In production, this would extract from actual function
-        # For now, use a placeholder
-        return f"Tool: {tool_name}"
-
-    def _build_expanded_description(self, tool_name: str) -> str:
-        """Build expanded description from usage scenarios / 从使用场景构建扩展描述.
-
-        Args / 参数：
-            tool_name: Tool name / 工具名称
-
-        Returns / 返回：
-            str: Expanded description / 扩展描述
-        """
+    def _build_expanded_description(self, tool_name: str, doc_string: str, full_doc_string: str) -> str:
+        """Build expanded description from docstring and scenarios / 从文档字符串和场景构建扩展描述."""
         descriptions: List[str] = []
 
-        # Search for tool in usage scenarios
-        for scenario_name, scenario_info in USAGE_SCENARIOS.items():
+        category_map = self._build_category_map()
+        category = category_map.get(tool_name)
+        if category and category in TOOL_CATEGORIES:
+            descriptions.append(TOOL_CATEGORIES[category]["description"])
+
+        for scenario_info in USAGE_SCENARIOS.values():
             steps_str = " ".join(scenario_info.get("steps", []))
             if tool_name in steps_str:
                 descriptions.append(scenario_info["description"])
 
-        if descriptions:
-            return " ".join(descriptions)
-        else:
-            return f"Functionality for {tool_name}"
+        if full_doc_string and full_doc_string != doc_string:
+            descriptions.append(full_doc_string)
+        elif doc_string:
+            descriptions.append(doc_string)
 
-    def _build_parameter_descriptions(self, tool_name: str) -> str:
-        """Build parameter descriptions / 构建参数描述.
+        unique_descriptions: List[str] = []
+        for item in descriptions:
+            if item and item not in unique_descriptions:
+                unique_descriptions.append(item)
 
-        Args / 参数：
-            tool_name: Tool name / 工具名称
+        return " ".join(unique_descriptions) if unique_descriptions else f"Functionality for {tool_name}"
 
-        Returns / 返回：
-            str: Parameter descriptions / 参数描述
-        """
-        # In production, this would extract from function signature
-        # For now, use a placeholder
-        return "Parameters vary by tool"
+    def _infer_category(self, tool_name: str) -> str:
+        """Infer category for tools missing from TOOL_CATEGORIES / 推断未在 TOOL_CATEGORIES 中声明的工具分类."""
+        if tool_name.startswith("semantic_") or tool_name.startswith("get_semantic_"):
+            return "语义检索"
+        if "prompt" in tool_name:
+            return "系统提示词"
+        if tool_name.startswith("get_") or tool_name.startswith("list_"):
+            return "使用指南"
+        return "其他"
 
     def _generate_embeddings(self) -> None:
         """Generate embeddings for all tools / 为所有工具生成嵌入."""
+        if not self._tools:
+            logger.warning("No tools discovered, skipping embedding generation")
+            return
+
         logger.info(f"Generating embeddings for {len(self._tools)} tools...")
+        tool_names = list(self._tools.keys())
+        texts = [self._tools[tool_name].to_embedding_text() for tool_name in tool_names]
 
-        # Prepare texts for batch embedding
-        texts = []
-        tool_names = []
+        embeddings = self._embedding_manager.get_batch_embeddings(texts)
+        for tool_name, embedding in zip(tool_names, embeddings):
+            self._tools[tool_name].embedding_vector = embedding
 
-        for tool_name, tool_emb in self._tools.items():
-            text = tool_emb.to_embedding_text()
-            texts.append(text)
-            tool_names.append(tool_name)
-
-        # Generate embeddings in batch
-        try:
-            embeddings = self._embedding_manager.get_batch_embeddings(texts)
-
-            # Update tool embeddings
-            for tool_name, embedding in zip(tool_names, embeddings):
-                self._tools[tool_name].embedding_vector = embedding
-
-            logger.info(f"Generated embeddings for {len(embeddings)} tools")
-
-        except Exception as e:
-            logger.error(f"Failed to generate embeddings: {e}")
-            raise
+        logger.info(f"Generated embeddings for {len(embeddings)} tools")
 
     def _build_embeddings_matrix(self) -> None:
-        """Build embeddings matrix for efficient search / 构建嵌入矩阵以实现高效搜索."""
+        """Build normalized embeddings matrix / 构建归一化后的嵌入矩阵."""
         if not self._tools:
             return
 
         self._tool_names_list = list(self._tools.keys())
-        embeddings = [
-            self._tools[name].embedding_vector
-            for name in self._tool_names_list
-        ]
+        embeddings = np.array(
+            [self._tools[name].embedding_vector for name in self._tool_names_list],
+            dtype=np.float32,
+        )
 
-        self._tool_embeddings_matrix = np.array(embeddings, dtype=np.float32)
+        norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
+        norms[norms == 0] = 1.0
+        self._tool_embeddings_matrix = embeddings / norms
 
         logger.info(f"Built embeddings matrix: {self._tool_embeddings_matrix.shape}")
 
-    def search(
-        self,
-        query: str,
-        top_k: int = 3,
-        threshold: float = 0.5
-    ) -> List[SemanticSearchResult]:
-        """Perform semantic search / 执行语义搜索.
-
-        Args / 参数：
-            query: User query in natural language / 用户自然语言查询
-            top_k: Number of results to return / 返回结果数量
-            threshold: Similarity threshold (0-1) / 相似度阈值（0-1）
-
-        Returns / 返回：
-            List[SemanticSearchResult]: Search results sorted by relevance / 按相关度排序的搜索结果
-        """
-        # Initialize if not already done
+    def search(self, query: str, top_k: int = 3, threshold: float = 0.5) -> List[SemanticSearchResult]:
+        """Perform semantic search / 执行语义搜索."""
         if not self._initialized:
             self.initialize()
 
-        # Generate query embedding
+        if self._tool_embeddings_matrix is None or not self._tool_names_list:
+            logger.warning("Semantic registry is initialized without embeddings")
+            return []
+
         logger.debug(f"Generating embedding for query: {query[:50]}...")
         query_embedding = self._embedding_manager.get_embedding(query)
-
-        # Calculate cosine similarities
         similarities = self._cosine_similarity_batch(query_embedding)
 
-        # Filter by threshold
         above_threshold = similarities >= threshold
-
-        # Get top-k indices
-        if np.any(above_threshold):
-            # Only consider results above threshold
-            valid_indices = np.where(above_threshold)[0]
-            valid_similarities = similarities[valid_indices]
-
-            # Sort by similarity (descending)
-            top_indices = np.argsort(valid_similarities)[::-1][:top_k]
-
-            # Map back to original indices
-            final_indices = valid_indices[top_indices]
-            final_scores = valid_similarities[top_indices]
-        else:
-            # No results above threshold, return empty
+        if not np.any(above_threshold):
             logger.warning(f"No results above threshold {threshold} for query: {query[:50]}...")
             return []
 
-        # Build results
-        results = []
+        valid_indices = np.where(above_threshold)[0]
+        valid_similarities = similarities[valid_indices]
+        top_indices = np.argsort(valid_similarities)[::-1][:top_k]
+        final_indices = valid_indices[top_indices]
+        final_scores = valid_similarities[top_indices]
+
+        results: List[SemanticSearchResult] = []
         for idx, score in zip(final_indices, final_scores):
             tool_name = self._tool_names_list[idx]
             tool_emb = self._tools[tool_name]
-
-            results.append(SemanticSearchResult(
-                tool_name=tool_name,
-                tool_category=tool_emb.tool_category,
-                relevance_score=float(score),
-                description=tool_emb.doc_string
-            ))
+            results.append(
+                SemanticSearchResult(
+                    tool_name=tool_name,
+                    tool_category=tool_emb.tool_category,
+                    relevance_score=float(np.clip(score, 0.0, 1.0)),
+                    description=tool_emb.doc_string,
+                )
+            )
 
         logger.info(f"Search returned {len(results)} results (threshold={threshold}, top_k={top_k})")
         return results
 
     def _cosine_similarity_batch(self, query_embedding: List[float]) -> np.ndarray:
-        """Calculate cosine similarity between query and all tools / 计算查询与所有工具之间的余弦相似度.
-
-        Args / 参数：
-            query_embedding: Query embedding vector / 查询嵌入向量
-
-        Returns / 返回：
-            np.ndarray: Similarity scores for all tools / 所有工具的相似度分数
-        """
+        """Calculate cosine similarity between query and all tools / 计算查询与所有工具之间的余弦相似度."""
         if self._tool_embeddings_matrix is None:
             raise ValueError("Embeddings matrix not initialized")
 
         query_vec = np.array(query_embedding, dtype=np.float32)
-
-        # Normalize vectors
         query_norm = np.linalg.norm(query_vec)
         if query_norm == 0:
-            return np.zeros(len(self._tool_names_list))
+            return np.zeros(len(self._tool_names_list), dtype=np.float32)
 
         query_vec_normalized = query_vec / query_norm
-
-        # Calculate dot product (equivalent to cosine similarity for normalized vectors)
         similarities = np.dot(self._tool_embeddings_matrix, query_vec_normalized)
-
-        return similarities
+        return np.clip(similarities, -1.0, 1.0)
 
     def get_tool_count(self) -> int:
-        """Get total number of tools / 获取工具总数.
-
-        Returns / 返回：
-            int: Number of tools / 工具数量
-        """
+        """Get total number of tools / 获取工具总数."""
         return len(self._tools)
 
     def get_tool_categories(self) -> Dict[str, List[str]]:
-        """Get all tool categories and their tools / 获取所有工具分类及其工具.
+        """Get all tool categories and their tools / 获取所有工具分类及其工具."""
+        if not self._tools:
+            return TOOL_CATEGORIES
 
-        Returns / 返回：
-            Dict[str, List[str]]: Category to tools mapping / 分类到工具的映射
-        """
-        return TOOL_CATEGORIES
+        categories: Dict[str, List[str]] = {}
+        for tool in self._tools.values():
+            categories.setdefault(tool.tool_category, []).append(tool.tool_name)
+        return categories
 
     def get_stats(self) -> Dict[str, Any]:
-        """Get registry statistics / 获取注册表统计信息.
-
-        Returns / 返回：
-            Dict[str, Any]: Statistics including tool count, categories, etc. / 统计信息，包括工具数量、分类等
-        """
+        """Get registry statistics / 获取注册表统计信息."""
         return {
             "total_tools": len(self._tools),
-            "total_categories": len(TOOL_CATEGORIES),
+            "total_categories": len(self.get_tool_categories()),
             "initialized": self._initialized,
             "embedding_matrix_shape": self._tool_embeddings_matrix.shape if self._tool_embeddings_matrix is not None else None,
-            "config": self._config.model_dump()
+            "config": self._config.model_dump(),
         }
 
 
-# Global singleton instance / 全局单例实例
 semantic_registry = SemanticRegistry()
